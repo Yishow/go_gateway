@@ -47,7 +47,7 @@ func TestWriter_RecordsWhyBufferedMappingNoLongerApplies(t *testing.T) {
 				} else {
 					owned.Store(true)
 				}
-				require.NoError(t, writer.flushDue(t.Context(), at.Add(time.Minute), false))
+				require.NoError(t, writer.flushDue(t.Context(), at.Add(time.Minute)))
 				history, err := NewConnectorService(connectors, mappings).ListWriteHistory(t.Context(), connector.ID, 20)
 				require.NoError(t, err)
 				require.Len(t, history, 1)
@@ -182,7 +182,7 @@ func TestWriter_RecordsSupersededSnapshotAfterTargetChanges(t *testing.T) {
 				}
 				require.NoError(t, writer.RefreshMappings(t.Context()))
 				require.ErrorIs(t, writer.WriteTagValue(t.Context(), entry.TagID, 12, at.Add(time.Second)), ErrSnapshotAccepted)
-				require.NoError(t, writer.flushDue(t.Context(), at.Add(time.Minute), false))
+				require.NoError(t, writer.flushDue(t.Context(), at.Add(time.Minute)))
 				history, err := NewConnectorService(connectors, mappings).ListWriteHistory(t.Context(), connector.ID, 20)
 				require.NoError(t, err)
 				var skipped, succeeded int

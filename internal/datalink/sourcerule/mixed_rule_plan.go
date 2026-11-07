@@ -67,16 +67,6 @@ func planUpdateRulePoints(current, next *schema.SourceRule, req UpdateRuleReques
 	return plan, nil
 }
 
-// keeps reports whether a persisted link address stays in the plan. A
-// homogeneous plan reconciles its own removals, so it keeps every address.
-func (p rulePointPlan) keeps(address string) bool {
-	if !p.mixed() {
-		return true
-	}
-	_, ok := p.byAddress[normalizeAddressKey(address)]
-	return ok
-}
-
 // persistedRuleAddressPlan is the address set the stored rule owns: its item
 // addresses for a mixed rule, the corrected MC range plan otherwise.
 func persistedRuleAddressPlan(rule *schema.SourceRule, identities ...optimizer.AcquisitionIdentity) ([]string, error) {

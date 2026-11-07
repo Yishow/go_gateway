@@ -288,11 +288,11 @@ func (w *Writer) flushConnector(ctx context.Context, connectorID string, now tim
 }
 
 // flushDue flushes every connector synchronously.
-func (w *Writer) flushDue(ctx context.Context, now time.Time, all bool) error {
+func (w *Writer) flushDue(ctx context.Context, now time.Time) error {
 	ids := w.connectorsWithPendingData()
 	var failures []error
 	for _, id := range slices.Sorted(maps.Keys(ids)) {
-		if err := w.flushConnector(ctx, id, now, all, 0); err != nil {
+		if err := w.flushConnector(ctx, id, now, false, 0); err != nil {
 			failures = append(failures, err)
 		}
 	}

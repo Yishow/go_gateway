@@ -119,14 +119,15 @@ func (s *Scheduler) recordScanDurationLocked(deviceID string, duration time.Dura
 	}
 	targetMs := max(configuredMs, ceilDurationTimes1Point2To100Ms(maxScan))
 	nextMs := state.effectiveMs
-	if targetMs > nextMs {
+	switch {
+	case targetMs > nextMs:
 		stretchedFrom = nextMs
 		nextMs = targetMs
-	} else if targetMs < nextMs && maxScan > configuredDur {
+	case targetMs < nextMs && maxScan > configuredDur:
 		// An old overrun left the five-scan window; retain the current
 		// window's required margin without waiting for on-time scans.
 		nextMs = targetMs
-	} else if nextMs > configuredMs && state.onTimeStreak >= autoIntervalWindowSize {
+	case nextMs > configuredMs && state.onTimeStreak >= autoIntervalWindowSize:
 		state.onTimeStreak = 0
 		step := max(autoIntervalMinShrinkMs, ceilIntTo100Ms((nextMs-configuredMs)/2))
 		nextMs = max(targetMs, nextMs-step)

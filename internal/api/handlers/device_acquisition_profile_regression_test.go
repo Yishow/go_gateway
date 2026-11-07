@@ -17,7 +17,7 @@ import (
 
 const existingAcquisitionProfile = `{"host":"127.0.0.1","port":5000,"acquisition":{"version":1,"profile":"mitsubishi-q-iqr-3e-binary-v1","limits":{"random_points":180}}}`
 
-func acquisitionProfileHandlerRig(t *testing.T) (*device.Service, *workspace.Service, *stubDeviceRuntimeSyncer) {
+func acquisitionProfileHandlerRig(t *testing.T) (devices *device.Service, ws *workspace.Service, runtimeSyncer *stubDeviceRuntimeSyncer) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	repo := device.NewMemoryRepository()

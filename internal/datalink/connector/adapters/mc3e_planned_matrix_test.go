@@ -18,6 +18,7 @@ func TestMCPlannedCompleteScalarMatrix(t *testing.T) {
 	}{
 		{schema.DataTypeInt32, []uint16{0x8123, 0x4567}, int32(-2128394905)},
 		{schema.DataTypeUint32, []uint16{0x0102, 0x0304}, uint32(0x01020304)},
+		{schema.DataTypeUint32, []uint16{0xffff, 0xffff}, uint32(0xffffffff)},
 		{schema.DataTypeFloat32, []uint16{0xc120, 0}, float32(-10)},
 		{schema.DataTypeInt64, []uint16{0x8123, 0x4567, 0x89ab, 0xcdef}, int64(-9141386507638288913)},
 		{schema.DataTypeUint64, []uint16{0x0102, 0x0304, 0x0506, 0x0708}, uint64(0x0102030405060708)},

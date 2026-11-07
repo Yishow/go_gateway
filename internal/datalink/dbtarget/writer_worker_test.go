@@ -99,7 +99,7 @@ func TestWriter_RecordsActualWriteEvenWhenOutcomeUpdateFails(t *testing.T) {
 	t.Cleanup(func() { _ = writer.Close(context.Background()) })
 	at := time.Date(2026, 11, 4, 10, 0, 1, 0, time.UTC)
 	require.ErrorIs(t, writer.WriteTagValue(t.Context(), "outcome", 12, at), ErrSnapshotAccepted)
-	require.ErrorContains(t, writer.flushDue(t.Context(), at.Add(time.Minute), false), "outcome storage unavailable")
+	require.ErrorContains(t, writer.flushDue(t.Context(), at.Add(time.Minute)), "outcome storage unavailable")
 	history := listWriteHistory(connector.ID, 10)
 	require.Len(t, history, 1)
 	require.Equal(t, deliveryOutcomeSuccess, history[0].Status)
@@ -129,7 +129,7 @@ func TestWriter_RecordsFailureAfterDestinationTimeout(t *testing.T) {
 	require.ErrorIs(t, writer.WriteTagValue(t.Context(), "timeout", 12, at), ErrSnapshotAccepted)
 	ctx, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
 	defer cancel()
-	err := writer.flushDue(ctx, at.Add(time.Minute), false)
+	err := writer.flushDue(ctx, at.Add(time.Minute))
 	releaseOpen()
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	select {
@@ -171,7 +171,7 @@ func TestWriter_RecordsGroupedFailureAfterDestinationTimeout(t *testing.T) {
 	require.ErrorIs(t, writer.WriteTagValue(t.Context(), "group-timeout", 12, at), ErrSnapshotAccepted)
 	ctx, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
 	defer cancel()
-	err := writer.flushDue(ctx, at.Add(time.Minute), false)
+	err := writer.flushDue(ctx, at.Add(time.Minute))
 	releaseOpen()
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 	select {
@@ -324,7 +324,7 @@ func TestWriter_DoesNotFlushDisabledConnector(t *testing.T) {
 	connector.Enabled = false
 	require.NoError(t, connectors.Update(t.Context(), connector))
 	require.NoError(t, writer.RefreshMappings(t.Context()))
-	require.NoError(t, writer.flushDue(t.Context(), at.Add(time.Minute), false))
+	require.NoError(t, writer.flushDue(t.Context(), at.Add(time.Minute)))
 	var rows int
 	require.NoError(t, target.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM snapshot_values`).Scan(&rows))
 	require.Zero(t, rows, "a disabled connector must not receive a buffered snapshot")
@@ -353,7 +353,7 @@ func TestWriter_DoesNotFlushDisabledGroupedConnector(t *testing.T) {
 	connector.Enabled = false
 	require.NoError(t, connectors.Update(t.Context(), connector))
 	require.NoError(t, writer.RefreshMappings(t.Context()))
-	require.NoError(t, writer.flushDue(t.Context(), at.Add(time.Minute), false))
+	require.NoError(t, writer.flushDue(t.Context(), at.Add(time.Minute)))
 	var rows int
 	require.NoError(t, target.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM snapshot_values`).Scan(&rows))
 	require.Zero(t, rows, "a disabled connector must not receive a buffered grouped snapshot")
@@ -374,7 +374,7 @@ func TestWriter_RemovedMappingReleasesIntervalState(t *testing.T) {
 	t.Cleanup(func() { _ = writer.Close(context.Background()) })
 	at := time.Date(2026, 11, 4, 10, 0, 1, 0, time.UTC)
 	require.ErrorIs(t, writer.WriteTagValue(t.Context(), "removed", 12, at), ErrSnapshotAccepted)
-	require.NoError(t, writer.flushDue(t.Context(), at.Add(time.Minute), false))
+	require.NoError(t, writer.flushDue(t.Context(), at.Add(time.Minute)))
 	require.NoError(t, mappings.Delete(t.Context(), "mapping-removed"))
 	require.NoError(t, writer.RefreshMappings(t.Context()))
 	writer.mu.Lock()
@@ -442,7 +442,7 @@ func TestWriter_GroupedValuesDoNotQueueWhileConnectorIsBlocked(t *testing.T) {
 	rows, err := target.QueryContext(t.Context(), `SELECT d0 FROM snapshot_values ORDER BY rowid`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var values []float64
+	values := make([]float64, 0, 2)
 	for rows.Next() {
 		var value float64
 		require.NoError(t, rows.Scan(&value))

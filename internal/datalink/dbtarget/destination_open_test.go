@@ -146,12 +146,12 @@ func TestProductionGroupOutageRecoveryLegacyWriterSkipsMappingsOwnedByAGroup(t *
 	}
 
 	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 1.5, ts), ErrSnapshotAccepted)
-	require.NoError(t, writer.flushDue(ctx, ts.Add(time.Minute), false))
+	require.NoError(t, writer.flushDue(ctx, ts.Add(time.Minute)))
 	require.Equal(t, 1, rows(), "before a group owns the output the legacy writer works as before")
 
 	owned = true
 	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 2.5, ts.Add(time.Minute)), ErrSnapshotAccepted)
-	require.NoError(t, writer.flushDue(ctx, ts.Add(2*time.Minute), false))
+	require.NoError(t, writer.flushDue(ctx, ts.Add(2*time.Minute)))
 	require.Equal(t, 1, rows(), "once a group owns the output the legacy writer stops, so there is exactly one writer")
 
 	otherTag, err := tagSvc.Create(ctx, tag.CreateTagRequest{Key: "pressure", DisplayName: "Pressure", DataType: schema.DataTypeFloat64})
@@ -163,7 +163,7 @@ func TestProductionGroupOutageRecoveryLegacyWriterSkipsMappingsOwnedByAGroup(t *
 	require.NoError(t, err)
 	require.NoError(t, writer.RefreshMappings(ctx))
 	require.ErrorIs(t, writer.WriteTagValue(ctx, otherTag.ID, 9.5, ts.Add(2*time.Minute)), ErrSnapshotAccepted)
-	require.NoError(t, writer.flushDue(ctx, ts.Add(3*time.Minute), false))
+	require.NoError(t, writer.flushDue(ctx, ts.Add(3*time.Minute)))
 	require.Equal(t, 2, rows(), "tags the group does not own are unaffected")
 }
 
@@ -195,7 +195,7 @@ func TestRevisionBoundBacklogLegacyWriterReportsOwnedOutputAsNotApplicable(t *te
 	at := time.Now()
 	err = writer.WriteTagValue(ctx, tagEntity.ID, 1.5, at)
 	require.ErrorIs(t, err, ErrSnapshotAccepted, "acceptance must not claim that SQL was written")
-	require.NoError(t, writer.flushDue(ctx, at.Add(time.Minute), false))
+	require.NoError(t, writer.flushDue(ctx, at.Add(time.Minute)))
 	history := listWriteHistory(connector.ID, 10)
 	require.Len(t, history, 1)
 	require.Equal(t, "skipped", history[0].Status, "an owned output must not record a successful legacy write")

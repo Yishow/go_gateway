@@ -148,7 +148,7 @@ func TestWriter_WritesOnlyLatestValuePerInterval(t *testing.T) {
 	}
 	require.Zero(t, countRows(), "ingest must not write synchronously")
 
-	require.NoError(t, writer.flushDue(t.Context(), intervalStart.Add(14*time.Second), false))
+	require.NoError(t, writer.flushDue(t.Context(), intervalStart.Add(14*time.Second)))
 	require.Zero(t, countRows(), "the interval has not ended yet")
 
 	tick <- intervalStart.Add(15 * time.Second)
@@ -157,7 +157,7 @@ func TestWriter_WritesOnlyLatestValuePerInterval(t *testing.T) {
 	require.NoError(t, targetDB.QueryRowContext(t.Context(), `SELECT d0 FROM snapshot_values`).Scan(&written))
 	require.Equal(t, 12.0, written)
 
-	require.NoError(t, writer.flushDue(t.Context(), intervalStart.Add(30*time.Second), false))
+	require.NoError(t, writer.flushDue(t.Context(), intervalStart.Add(30*time.Second)))
 	require.Equal(t, 1, countRows(), "an interval without a new value writes no row")
 
 	require.Eventually(t, func() bool { return len(listWriteHistory(connector.ID, 10)) == 1 }, time.Second, 10*time.Millisecond)
@@ -182,7 +182,7 @@ func TestWriter_DoesNotWriteTwiceWithinOneInterval(t *testing.T) {
 	t.Cleanup(func() { _ = writer.Close(context.Background()) })
 	at := time.Date(2026, 11, 4, 10, 0, 0, 0, time.UTC)
 	require.ErrorIs(t, writer.WriteTagValue(t.Context(), "tag-interval", 10, at.Add(time.Second)), ErrSnapshotAccepted)
-	require.NoError(t, writer.flushDue(t.Context(), at.Add(15*time.Second), false))
+	require.NoError(t, writer.flushDue(t.Context(), at.Add(15*time.Second)))
 	mapping, err := mappings.GetByID(t.Context(), "mapping-tag-interval")
 	require.NoError(t, err)
 	mapping.Enabled = false
@@ -192,11 +192,11 @@ func TestWriter_DoesNotWriteTwiceWithinOneInterval(t *testing.T) {
 	require.NoError(t, mappings.Update(t.Context(), mapping))
 	require.NoError(t, writer.RefreshMappings(t.Context()))
 	require.ErrorIs(t, writer.WriteTagValue(t.Context(), "tag-interval", 12, at.Add(10*time.Second)), ErrSnapshotAccepted)
-	require.NoError(t, writer.flushDue(t.Context(), at.Add(16*time.Second), false))
+	require.NoError(t, writer.flushDue(t.Context(), at.Add(16*time.Second)))
 	var count int
 	require.NoError(t, target.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM snapshot_values`).Scan(&count))
 	require.Equal(t, 1, count)
-	require.NoError(t, writer.flushDue(t.Context(), at.Add(30*time.Second), false))
+	require.NoError(t, writer.flushDue(t.Context(), at.Add(30*time.Second)))
 	require.NoError(t, target.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM snapshot_values`).Scan(&count))
 	require.Equal(t, 2, count)
 }

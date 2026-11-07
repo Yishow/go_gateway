@@ -30,7 +30,7 @@ func TestWriter_PostgresMissingTableRecovery(t *testing.T) {
 				for i, mapping := range f.mappings {
 					require.ErrorIs(t, f.writer.WriteTagValue(t.Context(), mapping.TagID, 21.5+float64(i), cycleAt), ErrSnapshotAccepted)
 				}
-				require.NoError(t, f.writer.flushDue(t.Context(), cycleAt.Add(time.Minute), false))
+				require.NoError(t, f.writer.flushDue(t.Context(), cycleAt.Add(time.Minute)))
 				var temperature, pressure float64
 				var savedAt time.Time
 				require.NoError(t, admin.QueryRowContext(t.Context(), `SELECT temperature, pressure, ts FROM `+table).Scan(&temperature, &pressure, &savedAt))
@@ -67,7 +67,7 @@ func TestWriter_PostgresMissingTableRecoveryPermissionDenied(t *testing.T) {
 		postgresConnectorConfig(fields, schemaName, roleName, password), schemaName, false)
 	at := time.Now()
 	require.ErrorIs(t, f.writer.WriteTagValue(t.Context(), f.mappings[0].TagID, 42.0, at), ErrSnapshotAccepted)
-	err = f.writer.flushDue(t.Context(), at.Add(time.Minute), false)
+	err = f.writer.flushDue(t.Context(), at.Add(time.Minute))
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "自動重建資料表失敗")
 	var exists bool

@@ -21,7 +21,7 @@ func acquisitionMixedLayoutSupported(device schema.Device) bool {
 // enabled-state-consistent point per stored item, at the item's address and
 // type. Its items are ordinary points for the optimizer, so the rule adds
 // exclusions only when disabled.
-func acquisitionMixedRuleExclusions(identity optimizer.AcquisitionIdentity, rule *schema.SourceRule, links []*schema.SourceRuleLink, points map[string]*schema.Point) ([]optimizer.NativeRange, string) {
+func acquisitionMixedRuleExclusions(identity optimizer.AcquisitionIdentity, rule *schema.SourceRule, links []*schema.SourceRuleLink, points map[string]*schema.Point) (ranges []optimizer.NativeRange, reason string) {
 	items, err := DecodeMixedItems(rule.MixedItems)
 	if err != nil || len(items) == 0 {
 		return nil, acquisitionSourceRuleGeometryUnsupported

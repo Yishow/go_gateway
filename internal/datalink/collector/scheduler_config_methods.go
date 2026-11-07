@@ -148,7 +148,7 @@ func (s *Scheduler) RemovePollingGroup(groupID string) {
 
 // RemoveDeviceOwnedPollingGroups stops the tickers of polling groups owned by
 // deviceID. Shared groups are untouched; the device's owned group is added back
-// when the device is synchronised again.
+// when the device is synchronized again.
 func (s *Scheduler) RemoveDeviceOwnedPollingGroups(deviceID string) {
 	if s == nil || deviceID == "" {
 		return

@@ -139,7 +139,7 @@ func (r *SQLRepository) ListActive(ctx context.Context) ([]Event, error) {
 }
 
 // List returns one device's events, newest first, with the filtered total.
-func (r *SQLRepository) List(ctx context.Context, f ListFilter) ([]Event, int, error) {
+func (r *SQLRepository) List(ctx context.Context, f ListFilter) (_ []Event, _ int, err error) {
 	if err := validateFilter(f); err != nil {
 		return nil, 0, err
 	}
@@ -161,7 +161,11 @@ func (r *SQLRepository) List(ctx context.Context, f ListFilter) ([]Event, int, e
 	if err != nil {
 		return nil, 0, fmt.Errorf("begin acquisition anomaly list: %w", err)
 	}
-	defer func() { _ = tx.Rollback() }()
+	defer func() {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			err = errors.Join(err, fmt.Errorf("list acquisition anomalies: rollback: %w", rollbackErr))
+		}
+	}()
 	var total int
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM acquisition_anomalies WHERE `+clause, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count acquisition anomalies: %w", err)
@@ -217,7 +221,7 @@ func queryEvents(ctx context.Context, q eventQuerier, query string, args ...any)
 		return nil, fmt.Errorf("list acquisition anomalies: %w", err)
 	}
 	defer rows.Close()
-	var events []Event
+	events := make([]Event, 0, 16)
 	for rows.Next() {
 		var ev Event
 		var point, lastValue sql.NullString
@@ -240,6 +244,9 @@ func queryEvents(ctx context.Context, q eventQuerier, query string, args ...any)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("list acquisition anomalies: %w", err)
+	}
+	if len(events) == 0 {
+		return nil, nil
 	}
 	return events, nil
 }

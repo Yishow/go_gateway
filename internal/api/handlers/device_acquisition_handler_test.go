@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupDeviceAcquisitionHandlerRig(t *testing.T) (*device.Service, *point.Service, *workspace.Service, *stubDeviceRuntimeSyncer) {
+func setupDeviceAcquisitionHandlerRig(t *testing.T) (devices *device.Service, points *point.Service, ws *workspace.Service, runtimeSyncer *stubDeviceRuntimeSyncer) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 

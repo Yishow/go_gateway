@@ -51,11 +51,11 @@ func TestWriter_EffectiveSnapshotIntervalResolution(t *testing.T) {
 				return
 			}
 			require.ErrorIs(t, writeErr, ErrSnapshotAccepted)
-			require.NoError(t, writer.flushDue(t.Context(), at.Add(time.Duration(tc.wantSeconds-1)*time.Second), false))
+			require.NoError(t, writer.flushDue(t.Context(), at.Add(time.Duration(tc.wantSeconds-1)*time.Second)))
 			var count int
 			require.NoError(t, target.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM snapshot_values`).Scan(&count))
 			require.Zero(t, count)
-			require.NoError(t, writer.flushDue(t.Context(), at.Add(time.Duration(tc.wantSeconds)*time.Second), false))
+			require.NoError(t, writer.flushDue(t.Context(), at.Add(time.Duration(tc.wantSeconds)*time.Second)))
 			require.NoError(t, target.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM snapshot_values`).Scan(&count))
 			require.Equal(t, 1, count)
 		})

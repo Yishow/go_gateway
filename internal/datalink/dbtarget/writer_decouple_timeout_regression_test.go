@@ -186,7 +186,7 @@ func TestSnapshotWorker_CanceledFlushDoesNotAttemptOrRecordWrite(t *testing.T) {
 	require.ErrorIs(t, writer.WriteTagValue(t.Context(), "canceled", 1, at), ErrSnapshotAccepted)
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	require.ErrorIs(t, writer.flushDue(ctx, at.Add(time.Minute), false), context.Canceled)
+	require.ErrorIs(t, writer.flushDue(ctx, at.Add(time.Minute)), context.Canceled)
 	require.Zero(t, opens.Load())
 	require.Empty(t, listWriteHistory(connector.ID, 10))
 	_, pending := writer.connectorsWithPendingData()[connector.ID]

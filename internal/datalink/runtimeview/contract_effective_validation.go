@@ -42,7 +42,7 @@ func validateSummaryProfile(f *GroupFacts) error {
 	}
 	seconds := p.Interval
 	if p.Kind == "instantaneous" {
-		if p.Unit != "second" || p.Interval > 300 || (f.Reduction != runtimeViewUnavailable && f.Reduction != "latest" && f.Reduction != "mean") {
+		if p.Unit != "second" || p.Interval > 300 || (f.Reduction != runtimeViewUnavailable && f.Reduction != runtimeViewLatest && f.Reduction != "mean") {
 			return errUnavailable
 		}
 	} else {
@@ -241,7 +241,7 @@ func validateCurrent(c *CurrentDelivery, facts *GroupFacts) error {
 					return errUnavailable
 				}
 			}
-			if (r.DeltaKnown != nil && !*r.DeltaKnown && r.State != "unknown" && r.State != snapshot.ReasonNotDue) || (r.Coverage != nil && *r.Coverage == "partial" && r.State != "partial") {
+			if (r.DeltaKnown != nil && !*r.DeltaKnown && r.State != runtimeViewUnknown && r.State != snapshot.ReasonNotDue) || (r.Coverage != nil && *r.Coverage == runtimeViewPartial && r.State != runtimeViewPartial) {
 				return errUnavailable
 			}
 			if r.Receipt != nil && ((r.WindowStart == nil && (r.Calculation == nil || r.Calculation.Status != snapshot.ReasonNotDue)) || r.State == runtimeViewUnavailable || c.LastCommit == nil) {

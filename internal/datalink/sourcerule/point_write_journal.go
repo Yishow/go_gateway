@@ -152,7 +152,7 @@ func (s *Service) restoreOwnedPoints(ctx context.Context, journal *pointWriteJou
 		if e.before == nil || e.current == nil {
 			continue
 		}
-		if !(addressChanged && len(batch) > 1) {
+		if !addressChanged || len(batch) <= 1 {
 			if err := s.pointSvc.RestoreRevision(ctx, e.before, e.current.RevisionID); err != nil {
 				return nil, err
 			}

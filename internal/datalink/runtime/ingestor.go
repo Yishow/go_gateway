@@ -83,41 +83,44 @@ func (s *Service) handleCollectedValue(ctx context.Context, cv collector.Collect
 		}
 
 		if s.target != nil {
-			if outcomeWriter, ok := s.target.(TargetOutcomeWriter); ok {
-				for _, outcome := range outcomeWriter.WriteTagValueOutcomes(ctx, b.TagID, finalValue, cv.Timestamp) {
+			switch target := s.target.(type) {
+			case TargetOutcomeWriter:
+				for _, outcome := range target.WriteTagValueOutcomes(ctx, b.TagID, finalValue, cv.Timestamp) {
 					s.recordTargetDeliveryOutcome(deviceID, cv.PointID, b.TagID, outcome, cv.Timestamp)
 				}
-			} else if asyncWriter, ok := s.target.(AsyncAcceptingWriter); ok {
-				accepted, err := asyncWriter.AcceptTagValue(ctx, b.TagID, finalValue, cv.Timestamp)
+			case AsyncAcceptingWriter:
+				accepted, err := target.AcceptTagValue(ctx, b.TagID, finalValue, cv.Timestamp)
 				if accepted || err != nil {
 					s.recordTargetDeliveryOutcome(deviceID, cv.PointID, b.TagID, TargetDeliveryOutcome{Target: TargetDatabase, Accepted: accepted, Err: err}, cv.Timestamp)
 				}
-			} else if err := s.target.WriteTagValue(ctx, b.TagID, finalValue, cv.Timestamp); err != nil {
-				s.writeError.Add(1)
-				var deliveryErr *DeliveryError
-				if errors.As(err, &deliveryErr) && deliveryErr.Target == "modbus_share" {
-					s.recordModbusShareDeliveryDiagnostic(ModbusShareDeliveryDiagnostic{DeviceID: deviceID, PointID: cv.PointID, TagID: b.TagID, Status: ModbusShareDeliveryStatusFailed, Stage: deliveryErr.Stage, Error: deliveryErr.Error(), ObservedAt: cv.Timestamp})
-					continue
+			default:
+				if err := target.WriteTagValue(ctx, b.TagID, finalValue, cv.Timestamp); err != nil {
+					s.writeError.Add(1)
+					var deliveryErr *DeliveryError
+					if errors.As(err, &deliveryErr) && deliveryErr.Target == "modbus_share" {
+						s.recordModbusShareDeliveryDiagnostic(ModbusShareDeliveryDiagnostic{DeviceID: deviceID, PointID: cv.PointID, TagID: b.TagID, Status: ModbusShareDeliveryStatusFailed, Stage: deliveryErr.Stage, Error: deliveryErr.Error(), ObservedAt: cv.Timestamp})
+						continue
+					}
+					s.recordDatabaseDeliveryDiagnostic(DatabaseDeliveryDiagnostic{
+						DeviceID:    deviceID,
+						PointID:     cv.PointID,
+						TagID:       b.TagID,
+						Status:      DatabaseDeliveryStatusFailed,
+						Stages:      databaseDeliveryFailureStages(),
+						FailedStage: DatabaseDeliveryStageDBWrite,
+						Error:       err.Error(),
+						ObservedAt:  cv.Timestamp,
+					})
+				} else {
+					s.recordDatabaseDeliveryDiagnostic(DatabaseDeliveryDiagnostic{
+						DeviceID:   deviceID,
+						PointID:    cv.PointID,
+						TagID:      b.TagID,
+						Status:     DatabaseDeliveryStatusSucceeded,
+						Stages:     databaseDeliverySuccessStages(),
+						ObservedAt: cv.Timestamp,
+					})
 				}
-				s.recordDatabaseDeliveryDiagnostic(DatabaseDeliveryDiagnostic{
-					DeviceID:    deviceID,
-					PointID:     cv.PointID,
-					TagID:       b.TagID,
-					Status:      DatabaseDeliveryStatusFailed,
-					Stages:      databaseDeliveryFailureStages(),
-					FailedStage: DatabaseDeliveryStageDBWrite,
-					Error:       err.Error(),
-					ObservedAt:  cv.Timestamp,
-				})
-			} else {
-				s.recordDatabaseDeliveryDiagnostic(DatabaseDeliveryDiagnostic{
-					DeviceID:   deviceID,
-					PointID:    cv.PointID,
-					TagID:      b.TagID,
-					Status:     DatabaseDeliveryStatusSucceeded,
-					Stages:     databaseDeliverySuccessStages(),
-					ObservedAt: cv.Timestamp,
-				})
 			}
 		}
 	}

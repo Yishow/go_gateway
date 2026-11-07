@@ -178,7 +178,7 @@ func TestWriter_RecordsLastWriteFailureOutcome(t *testing.T) {
 	observedAt := time.Date(2026, 6, 7, 13, 0, 0, 0, time.UTC)
 	require.NoError(t, writer.RefreshMappings(ctx))
 	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 42.5, observedAt), ErrSnapshotAccepted)
-	err = writer.flushDue(ctx, observedAt.Add(time.Minute), false)
+	err = writer.flushDue(ctx, observedAt.Add(time.Minute))
 	require.Error(t, err)
 
 	updated, err := connectorRepo.GetByID(ctx, connector.ID)

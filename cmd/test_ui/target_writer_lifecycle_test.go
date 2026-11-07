@@ -40,9 +40,9 @@ func productionSnapshotTarget(t *testing.T, f scheduledProductionFixture) (*sql.
 	return destination, path, connector, targetMapping
 }
 
-func snapshotRowCount(db *sql.DB, where string) int {
+func snapshotRowCount(ctx context.Context, db *sql.DB, where string) int {
 	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM readings WHERE ` + where).Scan(&count); err != nil {
+	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM readings WHERE `+where).Scan(&count); err != nil {
 		return -1
 	}
 	return count
@@ -58,35 +58,35 @@ func TestProductionSnapshotWorker_LoadsSavedMappingAtStartup(t *testing.T) {
 	revisions := modbusshare.NewSQLWorkspaceRevisionStore(f.db)
 	hydrateStartupShare(t.Context(), services, revisions, modbusshare.NewReconciler(services.modbusShare, revisions))
 	require.NoError(t, services.runtime.Start(t.Context()))
-	require.Eventually(t, func() bool { return snapshotRowCount(destination, "first IS NOT NULL") > 0 }, 8*time.Second, 20*time.Millisecond, "startup must load a saved connector and mapping")
+	require.Eventually(t, func() bool { return snapshotRowCount(t.Context(), destination, "first IS NOT NULL") > 0 }, 8*time.Second, 20*time.Millisecond, "startup must load a saved connector and mapping")
 }
 
 func TestProductionSnapshotWorker_Lifecycle(t *testing.T) {
 	f, _, _ := newAcceptanceScheduledLoad(t, 1, 3, time.Millisecond)
 	destination, _, connector, targetMapping := productionSnapshotTarget(t, f)
 	require.NoError(t, f.services.runtime.Start(t.Context()))
-	require.Eventually(t, func() bool { return snapshotRowCount(destination, "first IS NOT NULL") > 0 }, 8*time.Second, 20*time.Millisecond, "production worker must pick up the new mapping")
+	require.Eventually(t, func() bool { return snapshotRowCount(t.Context(), destination, "first IS NOT NULL") > 0 }, 8*time.Second, 20*time.Millisecond, "production worker must pick up the new mapping")
 
 	disabled := false
 	connector, err := f.services.dbTarget.Update(t.Context(), connector.ID, dbtarget.UpdateConnectorRequest{Enabled: &disabled, ExpectedIdentityRevision: &connector.IdentityRevision})
 	require.NoError(t, err)
 	// Allow the production refresh tick and any in-flight write to complete.
 	time.Sleep(2 * time.Second)
-	before := snapshotRowCount(destination, "1=1")
+	before := snapshotRowCount(t.Context(), destination, "1=1")
 	time.Sleep(2 * time.Second)
-	require.Equal(t, before, snapshotRowCount(destination, "1=1"), "disabled connector must not write")
+	require.Equal(t, before, snapshotRowCount(t.Context(), destination, "1=1"), "disabled connector must not write")
 
 	enabled := true
-	connector, err = f.services.dbTarget.Update(t.Context(), connector.ID, dbtarget.UpdateConnectorRequest{Enabled: &enabled, ExpectedIdentityRevision: &connector.IdentityRevision})
+	_, err = f.services.dbTarget.Update(t.Context(), connector.ID, dbtarget.UpdateConnectorRequest{Enabled: &enabled, ExpectedIdentityRevision: &connector.IdentityRevision})
 	require.NoError(t, err)
-	require.Eventually(t, func() bool { return snapshotRowCount(destination, "1=1") > before }, 8*time.Second, 20*time.Millisecond, "re-enabled connector must resume")
+	require.Eventually(t, func() bool { return snapshotRowCount(t.Context(), destination, "1=1") > before }, 8*time.Second, 20*time.Millisecond, "re-enabled connector must resume")
 
 	column := "second"
 	_, err = f.services.dbMapping.Update(t.Context(), targetMapping.ID, dbtarget.UpdateTargetMappingRequest{ColumnName: &column})
 	require.NoError(t, err)
-	require.Eventually(t, func() bool { return snapshotRowCount(destination, "second IS NOT NULL") > 0 }, 8*time.Second, 20*time.Millisecond, "updated mapping must take effect")
+	require.Eventually(t, func() bool { return snapshotRowCount(t.Context(), destination, "second IS NOT NULL") > 0 }, 8*time.Second, 20*time.Millisecond, "updated mapping must take effect")
 	require.NoError(t, f.services.runtime.Stop(context.Background()))
-	closedCount := snapshotRowCount(destination, "1=1")
+	closedCount := snapshotRowCount(t.Context(), destination, "1=1")
 	time.Sleep(1200 * time.Millisecond)
-	require.Equal(t, closedCount, snapshotRowCount(destination, "1=1"), "runtime shutdown must stop the worker")
+	require.Equal(t, closedCount, snapshotRowCount(t.Context(), destination, "1=1"), "runtime shutdown must stop the worker")
 }

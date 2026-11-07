@@ -82,7 +82,7 @@ func TestSnapshotWorker_CloseFlushesNewGroupedInterval(t *testing.T) {
 	rows, err := target.QueryContext(t.Context(), `SELECT d0 FROM snapshot_values ORDER BY rowid`)
 	require.NoError(t, err)
 	defer rows.Close()
-	var values []float64
+	values := make([]float64, 0, 2)
 	for rows.Next() {
 		var value float64
 		require.NoError(t, rows.Scan(&value))
@@ -133,7 +133,7 @@ func TestSnapshotWorker_GroupedValuesStayInTheirIntervalsDuringSlowWrite(t *test
 	require.NoError(t, err)
 	defer rows.Close()
 	type row struct{ a, b sql.NullFloat64 }
-	var actual []row
+	actual := make([]row, 0, 3)
 	for rows.Next() {
 		var value row
 		require.NoError(t, rows.Scan(&value.a, &value.b))
@@ -236,7 +236,7 @@ func TestSnapshotWorker_CloseFlushesAllRetainedGroupedIntervals(t *testing.T) {
 	require.NoError(t, err)
 	defer rows.Close()
 	type row struct{ a, b sql.NullFloat64 }
-	var actual []row
+	actual := make([]row, 0, 3)
 	for rows.Next() {
 		var value row
 		require.NoError(t, rows.Scan(&value.a, &value.b))

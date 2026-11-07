@@ -64,7 +64,10 @@ func (w *Writer) recoverWriterTable(ctx context.Context, db *sql.DB, connector *
 	// Serialize recovery only for the same connector. An unreachable target must
 	// not hold up table recovery for another connector.
 	lock, _ := w.recoveryLocks.LoadOrStore(connector.ID, &sync.Mutex{})
-	mutex := lock.(*sync.Mutex)
+	mutex, ok := lock.(*sync.Mutex)
+	if !ok || mutex == nil {
+		return fmt.Errorf("invalid writer recovery lock for connector %s", connector.ID)
+	}
 	mutex.Lock()
 	defer mutex.Unlock()
 

@@ -20,7 +20,7 @@ func TestProductionSnapshotWorker_MCUnreachableThroughput(t *testing.T) {
 	if os.Getenv("GATEWAY_TASK13_THROUGHPUT") != "1" {
 		t.Skip("explicit local throughput measurement")
 	}
-	connection, err := net.DialTimeout("tcp", "127.0.0.1:1", 200*time.Millisecond)
+	connection, err := (&net.Dialer{Timeout: 200 * time.Millisecond}).DialContext(t.Context(), "tcp", "127.0.0.1:1")
 	if connection != nil {
 		_ = connection.Close()
 	}
@@ -28,7 +28,7 @@ func TestProductionSnapshotWorker_MCUnreachableThroughput(t *testing.T) {
 	f, load, _ := newAcceptanceScheduledLoad(t, 1, 32, time.Millisecond)
 	destination, path, connector, _ := productionSnapshotTarget(t, f)
 	require.NoError(t, f.services.runtime.Start(t.Context()))
-	require.Eventually(t, func() bool { return snapshotRowCount(destination, "first IS NOT NULL") > 0 }, 8*time.Second, 20*time.Millisecond)
+	require.Eventually(t, func() bool { return snapshotRowCount(t.Context(), destination, "first IS NOT NULL") > 0 }, 8*time.Second, 20*time.Millisecond)
 
 	postgres := schema.DatabaseConnectorKindPostgres
 	badConfig := dbtarget.ConnectionConfig{"host": "127.0.0.1", "port": "1", "user": "fixture", "database": "fixture", "sslmode": "disable"}
@@ -71,7 +71,7 @@ func TestProductionSnapshotWorker_MCUnreachableThroughput(t *testing.T) {
 
 	// Recover the disposable target and prove that a live identity change is
 	// observed before shutdown, so cleanup does not bypass the active backoff.
-	rowsBeforeRecovery := snapshotRowCount(destination, "1=1")
+	rowsBeforeRecovery := snapshotRowCount(t.Context(), destination, "1=1")
 	sqlite := schema.DatabaseConnectorKindSQLite
 	goodConfig := dbtarget.ConnectionConfig{"dsn": path}
 	connector, err = f.services.dbTarget.Update(t.Context(), connector.ID, dbtarget.UpdateConnectorRequest{
@@ -80,7 +80,7 @@ func TestProductionSnapshotWorker_MCUnreachableThroughput(t *testing.T) {
 	require.NoError(t, err)
 	require.Eventually(t, func() bool {
 		current, getErr := f.services.dbTarget.GetByID(t.Context(), connector.ID)
-		return getErr == nil && current.LastWriteStatus == "success" && snapshotRowCount(destination, "1=1") > rowsBeforeRecovery
+		return getErr == nil && current.LastWriteStatus == "success" && snapshotRowCount(t.Context(), destination, "1=1") > rowsBeforeRecovery
 	}, 35*time.Second, 20*time.Millisecond, "updated connector must resume at the disposable target")
 	require.NoError(t, f.services.runtime.Stop(context.Background()))
 	require.NoError(t, historyErr)

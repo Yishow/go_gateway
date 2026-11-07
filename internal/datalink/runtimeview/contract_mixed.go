@@ -8,6 +8,15 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	runtimeViewUnknown           = "unknown"
+	runtimeViewLatest            = "latest"
+	runtimeViewPartial           = "partial"
+	runtimeViewDelta             = "delta"
+	runtimeViewMemberCalculation = "member_calculation"
+	runtimeViewAvailable         = "available"
+)
+
 // MixedRecordingFacts is a projection of the canonical mixed profile, never a
 // legacy common interval or a permission to activate/edit the recording.
 type MixedRecordingFacts struct {
@@ -54,7 +63,7 @@ type CalculationResult struct {
 
 func validateMixedFacts(f *GroupFacts) error {
 	if f.MixedRecording == nil {
-		if f.Reduction == "member_calculation" {
+		if f.Reduction == runtimeViewMemberCalculation {
 			return errUnavailable
 		}
 		for _, m := range f.Members {
@@ -66,7 +75,7 @@ func validateMixedFacts(f *GroupFacts) error {
 	}
 	m := f.MixedRecording
 	id, err := uuid.Parse(m.RecordID)
-	if err != nil || id == uuid.Nil || id.String() != m.RecordID || m.ResultShape != "member-calculation-v1" || f.RecordingProfile != nil || f.IntervalSeconds != nil || f.Reduction != "member_calculation" {
+	if err != nil || id == uuid.Nil || id.String() != m.RecordID || m.ResultShape != "member-calculation-v1" || f.RecordingProfile != nil || f.IntervalSeconds != nil || f.Reduction != runtimeViewMemberCalculation {
 		return errUnavailable
 	}
 	for _, member := range f.Members {
@@ -77,7 +86,7 @@ func validateMixedFacts(f *GroupFacts) error {
 		if _, err := snapshot.CheckedCadenceDuration(c.Interval, c.Unit); err != nil {
 			return errUnavailable
 		}
-		if c.Method == "delta" && c.MeasurementID == nil {
+		if c.Method == runtimeViewDelta && c.MeasurementID == nil {
 			return errUnavailable
 		}
 	}
@@ -130,10 +139,10 @@ func validateMixedResult(r *SourceResult, facts *GroupFacts, source SourceEviden
 	if err != nil || c.IntervalSeconds != int64(duration/time.Second) || c.Method != intent.Method || c.Alignment != intent.Alignment || c.SourceType != *member.SourceValueType || c.ResultType != intent.ResultType {
 		return errStale
 	}
-	if c.RowEmitted != (c.OutcomeKind == "row") || c.ResultPresent != (c.Status == "ok") || (c.ResultPresent && !c.RawPresent) || (r.State == "available" && !c.ResultPresent) || ((r.State == snapshot.ReasonNotDue) != (c.Status == snapshot.ReasonNotDue)) || (r.Receipt != nil && !c.RowEmitted) {
+	if c.RowEmitted != (c.OutcomeKind == "row") || c.ResultPresent != (c.Status == "ok") || (c.ResultPresent && !c.RawPresent) || (r.State == runtimeViewAvailable && !c.ResultPresent) || ((r.State == snapshot.ReasonNotDue) != (c.Status == snapshot.ReasonNotDue)) || (r.Receipt != nil && !c.RowEmitted) {
 		return errUnavailable
 	}
-	if c.Method == "delta" {
+	if c.Method == runtimeViewDelta {
 		if r.DeltaKnown == nil || *r.DeltaKnown != c.ResultPresent {
 			return errUnavailable
 		}

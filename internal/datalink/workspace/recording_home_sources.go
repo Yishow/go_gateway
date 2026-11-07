@@ -12,8 +12,10 @@ import (
 
 // ReadRecordingHomeSources observes complete readonly source content twice.
 // Agreement is not an atomic snapshot and grants no command authority.
+const recordingHomeUnknown = "unknown"
+
 func ReadRecordingHomeSources(ctx context.Context, workspaceID string, read RecordingHomeSourceReader) (RecordingHomeSourcesObservation, error) {
-	unknown := RecordingHomeSourcesObservation{WorkspaceID: workspaceID, State: "unknown", ReasonCode: "source-inconsistent"}
+	unknown := RecordingHomeSourcesObservation{WorkspaceID: workspaceID, State: recordingHomeUnknown, ReasonCode: "source-inconsistent"}
 	if strings.TrimSpace(workspaceID) == "" {
 		return unknown, ErrRecordingHomeInvalidScope
 	}
@@ -115,11 +117,11 @@ func normalizeHomeSources(v RecordingHomeSourceInput) RecordingHomeSourceInput {
 	v.Points = points
 	for i := range v.Devices {
 		if v.Devices[i].Protocol == nil {
-			s := "unknown"
+			s := recordingHomeUnknown
 			v.Devices[i].Protocol = &s
 		}
 		if v.Devices[i].AvailabilityStatus == nil {
-			s := "unknown"
+			s := recordingHomeUnknown
 			v.Devices[i].AvailabilityStatus = &s
 		}
 	}

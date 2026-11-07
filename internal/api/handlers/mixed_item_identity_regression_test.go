@@ -30,7 +30,7 @@ func mixedLinkAt(t *testing.T, f *mixedRuleHandlerFixture, ruleID, address strin
 	return nil
 }
 
-func applyMixedRuleTags(t *testing.T, f *mixedRuleHandlerFixture, ruleID string) (*tag.Service, *mapping.Service) {
+func applyMixedRuleTags(t *testing.T, f *mixedRuleHandlerFixture, ruleID string) (tagService *tag.Service, mappingService *mapping.Service) {
 	t.Helper()
 	tags := tag.NewService(tag.NewSQLRepository(f.db))
 	mappings := mapping.NewServiceWithTagResolver(mapping.NewSQLRepository(f.db), tags.GetByID)
@@ -80,11 +80,11 @@ func TestWorkspaceMixedItemAddressChangeKeepsAppliedIdentity(t *testing.T) {
 	require.Equal(t, before.PointID, after.PointID)
 	require.Equal(t, before.TagID, after.TagID)
 	require.Equal(t, before.MappingID, after.MappingID)
-	point, err := f.points.GetByID(t.Context(), before.PointID)
+	storedPoint, err := f.points.GetByID(t.Context(), before.PointID)
 	require.NoError(t, err)
-	require.Equal(t, "D200", point.Address)
-	require.Equal(t, schema.PointFormatOverride, point.FormatMode)
-	require.Equal(t, "ABCD", point.FormatOverride)
+	require.Equal(t, "D200", storedPoint.Address)
+	require.Equal(t, schema.PointFormatOverride, storedPoint.FormatMode)
+	require.Equal(t, "ABCD", storedPoint.FormatOverride)
 	mapped, err := mappings.GetByID(t.Context(), *before.MappingID)
 	require.NoError(t, err)
 	require.Equal(t, before.PointID, mapped.PointID)

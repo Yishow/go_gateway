@@ -33,7 +33,7 @@ func ExtractBitFromWord(word, bitOffset int) (bool, error) {
 	if bitOffset < 0 || bitOffset > 15 {
 		return false, fmt.Errorf("bit offset out of range: %d (valid: 0-15)", bitOffset)
 	}
-	return ((uint16(word) >> bitOffset) & 1) != 0, nil
+	return ((word >> bitOffset) & 1) != 0, nil
 }
 
 type randomReadEntry struct {

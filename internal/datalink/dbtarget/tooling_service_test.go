@@ -416,7 +416,7 @@ func TestConnectorService_ListWriteHistory_ReturnsLatestWriteRecord(t *testing.T
 	require.NoError(t, writer.RefreshMappings(ctx))
 	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 42.5, ts), ErrSnapshotAccepted)
 	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 41.0, ts.Add(time.Minute)), ErrSnapshotAccepted)
-	require.NoError(t, writer.flushDue(ctx, ts.Add(2*time.Minute), false))
+	require.NoError(t, writer.flushDue(ctx, ts.Add(2*time.Minute)))
 
 	records, err := connectorSvc.ListWriteHistory(ctx, connector.ID, 1)
 	require.NoError(t, err)

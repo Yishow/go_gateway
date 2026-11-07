@@ -57,7 +57,7 @@ func newMixedRuleHandlerFixture(t *testing.T) *mixedRuleHandlerFixture {
 	return &mixedRuleHandlerFixture{db: db, rules: rs, points: ps, router: router}
 }
 
-func (f *mixedRuleHandlerFixture) do(t *testing.T, method, path, body string) (int, map[string]any) {
+func (f *mixedRuleHandlerFixture) do(t *testing.T, method, path, body string) (status int, payload map[string]any) {
 	t.Helper()
 	response := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(t.Context(), method, path, strings.NewReader(body))

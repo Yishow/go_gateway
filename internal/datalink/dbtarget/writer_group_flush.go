@@ -15,7 +15,8 @@ func (w *Writer) flushBuckets(ctx context.Context, connectorID string, now time.
 		writeCtx, cancelWrite := context.WithTimeout(ctx, 5*time.Second)
 		for column, mapping := range bucket.Mappings {
 			current, err := w.mappingIsCurrent(writeCtx, mapping, bucket.Connector)
-			if err != nil {
+			switch {
+			case err != nil:
 				if writeCtx.Err() != nil && w.baseCtx.Err() != nil {
 					w.restoreGrouped(bucket)
 					cancelWrite()
@@ -24,10 +25,10 @@ func (w *Writer) flushBuckets(ctx context.Context, connectorID string, now time.
 				failures = append(failures, fmt.Errorf("mapping %s 確認失敗: %w", mapping.ID, err))
 				w.recordMappingSkip(bucket.Connector, mapping, bucket.Key.BucketStart, skipMappingCheckError)
 				delete(bucket.Values, column)
-			} else if !current {
+			case !current:
 				w.recordMappingSkip(bucket.Connector, mapping, bucket.Key.BucketStart, skipMappingNotCurrent)
 				delete(bucket.Values, column)
-			} else if w.suppress != nil && w.suppress(bucket.Key.ConnectorID, mapping.TagID) {
+			case w.suppress != nil && w.suppress(bucket.Key.ConnectorID, mapping.TagID):
 				w.recordMappingSkip(bucket.Connector, mapping, bucket.Key.BucketStart, skipWriteGroupOwned)
 				delete(bucket.Values, column)
 			}

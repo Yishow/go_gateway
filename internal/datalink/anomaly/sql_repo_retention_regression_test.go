@@ -13,7 +13,7 @@ func TestAnomalyRetentionDefaultPrunesOldestEndedAtFiveThousand(t *testing.T) {
 	repo := NewSQLRepository(openAnomalyTestDB(t, "dev-a", "dev-b"))
 	ctx := t.Context()
 
-	var activeIDs []int64
+	activeIDs := make([]int64, 0, 4)
 	for i, pointID := range []string{"active-a", "active-b", "active-c"} {
 		event, err := repo.Open(ctx, Event{DeviceID: "dev-a", PointID: pointID, Kind: KindStale, StartedAt: anomalyEpoch.Add(time.Duration(i) * time.Second)})
 		require.NoError(t, err)
@@ -44,7 +44,7 @@ func TestAnomalyRetentionDefaultPrunesOldestEndedAtFiveThousand(t *testing.T) {
 	active, activeTotal, err := repo.List(ctx, ListFilter{DeviceID: "dev-a", State: StateActive})
 	require.NoError(t, err)
 	require.Equal(t, 4, activeTotal)
-	var gotActiveIDs []int64
+	gotActiveIDs := make([]int64, 0, len(active))
 	for _, event := range active {
 		gotActiveIDs = append(gotActiveIDs, event.ID)
 	}
@@ -82,7 +82,7 @@ func TestAnomalyRetentionOverFiveThousandActivePrunesOnEnd(t *testing.T) {
 	active, activeTotal, err := repo.List(ctx, ListFilter{DeviceID: "dev-a", State: StateActive})
 	require.NoError(t, err)
 	require.Equal(t, 5001, activeTotal)
-	var gotActiveIDs []int64
+	gotActiveIDs := make([]int64, 0, len(active))
 	for _, event := range active {
 		gotActiveIDs = append(gotActiveIDs, event.ID)
 	}

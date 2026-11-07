@@ -84,7 +84,7 @@ func TestWriter_RecreatesMissingTableAndRetriesSameSample(t *testing.T) {
 				for i, mapping := range f.mappings {
 					require.ErrorIs(t, f.writer.WriteTagValue(t.Context(), mapping.TagID, 12.5+float64(i), cycleAt), ErrSnapshotAccepted)
 				}
-				require.NoError(t, f.writer.flushDue(t.Context(), cycleAt.Add(time.Minute), false))
+				require.NoError(t, f.writer.flushDue(t.Context(), cycleAt.Add(time.Minute)))
 				var temperature, pressure float64
 				require.NoError(t, db.QueryRowContext(t.Context(), `SELECT temperature, pressure FROM sensor_readings`).Scan(&temperature, &pressure))
 				require.Equal(t, 12.5, temperature)
@@ -119,7 +119,7 @@ func TestWriter_MissingTableConcurrentRecovery(t *testing.T) {
 	for err := range errors {
 		require.ErrorIs(t, err, ErrSnapshotAccepted)
 	}
-	require.NoError(t, f.writer.flushDue(t.Context(), time.Date(2026, 10, 24, 0, 10, 0, 0, time.UTC), false))
+	require.NoError(t, f.writer.flushDue(t.Context(), time.Date(2026, 10, 24, 0, 10, 0, 0, time.UTC)))
 	var count int
 	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sensor_readings`).Scan(&count))
 	require.Equal(t, 1, count, "concurrent values coalesce into a single latest snapshot")
@@ -135,7 +135,7 @@ func TestWriter_MissingTableInsertRetriesWithoutDuplicate(t *testing.T) {
 	require.NoError(t, f.writer.RefreshMappings(t.Context()))
 	at := time.Now()
 	require.ErrorIs(t, f.writer.WriteTagValue(t.Context(), f.mappings[0].TagID, 12.5, at), ErrSnapshotAccepted)
-	require.NoError(t, f.writer.flushDue(t.Context(), at.Add(time.Minute), false))
+	require.NoError(t, f.writer.flushDue(t.Context(), at.Add(time.Minute)))
 	var count int
 	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sensor_readings WHERE temperature = 12.5`).Scan(&count))
 	require.Equal(t, 1, count)
@@ -146,7 +146,7 @@ func TestWriter_RecoveryExcludesOutputsOwnedByWriteGroups(t *testing.T) {
 	f.writer.suppress = func(_, tagID string) bool { return tagID == f.mappings[1].TagID }
 	at := time.Now()
 	require.ErrorIs(t, f.writer.WriteTagValue(t.Context(), f.mappings[0].TagID, 12.5, at), ErrSnapshotAccepted)
-	require.NoError(t, f.writer.flushDue(t.Context(), at.Add(time.Minute), false))
+	require.NoError(t, f.writer.flushDue(t.Context(), at.Add(time.Minute)))
 	var value float64
 	require.NoError(t, db.QueryRowContext(t.Context(), `SELECT temperature FROM sensor_readings`).Scan(&value))
 	_, err := db.ExecContext(t.Context(), `SELECT pressure FROM sensor_readings`)
@@ -162,7 +162,7 @@ func TestWriter_RecoveryDoesNotAlterExistingTableOrCreateMissingDatabase(t *test
 		require.NoError(t, err)
 		at := time.Now()
 		require.ErrorIs(t, f.writer.WriteTagValue(t.Context(), f.mappings[0].TagID, 1.0, at), ErrSnapshotAccepted)
-		require.Error(t, f.writer.flushDue(t.Context(), at.Add(time.Minute), false))
+		require.Error(t, f.writer.flushDue(t.Context(), at.Add(time.Minute)))
 		var sentinel string
 		require.NoError(t, db.QueryRowContext(t.Context(), `SELECT sentinel FROM sensor_readings`).Scan(&sentinel))
 		require.Equal(t, "keep", sentinel)
@@ -175,7 +175,7 @@ func TestWriter_RecoveryDoesNotAlterExistingTableOrCreateMissingDatabase(t *test
 		require.NoError(t, os.Remove(path))
 		at := time.Now()
 		require.ErrorIs(t, f.writer.WriteTagValue(t.Context(), f.mappings[0].TagID, 1.0, at), ErrSnapshotAccepted)
-		require.Error(t, f.writer.flushDue(t.Context(), at.Add(time.Minute), false))
+		require.Error(t, f.writer.flushDue(t.Context(), at.Add(time.Minute)))
 		require.NoFileExists(t, path)
 	})
 }

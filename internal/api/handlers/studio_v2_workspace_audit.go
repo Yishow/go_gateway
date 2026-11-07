@@ -11,6 +11,8 @@ import (
 	"go-gateway/internal/datalink/workspace"
 )
 
+const workspaceAuditScope = "workspace"
+
 type workspaceAuditRecorder interface {
 	Record(ctx context.Context, event audit.RecordEvent) error
 }
@@ -81,7 +83,7 @@ func activationAuditScope(results []workspace.ActivationResult) string {
 		}
 	}
 	if len(deviceIDs) == 0 {
-		return "workspace"
+		return workspaceAuditScope
 	}
 	return "devices:" + strings.Join(deviceIDs, ",")
 }

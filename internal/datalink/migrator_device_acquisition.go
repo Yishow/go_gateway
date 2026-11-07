@@ -129,7 +129,7 @@ func devicesWithoutOwnedPollingGroup(ctx context.Context, tx *sql.Tx) ([]string,
 	if err != nil {
 		return nil, fmt.Errorf("list devices without owned polling group: %w", err)
 	}
-	var ids []string
+	ids := make([]string, 0)
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
@@ -139,6 +139,9 @@ func devicesWithoutOwnedPollingGroup(ctx context.Context, tx *sql.Tx) ([]string,
 	}
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, fmt.Errorf("list devices without owned polling group: %w", err)
+	}
+	if len(ids) == 0 {
+		return nil, nil
 	}
 	return ids, nil
 }

@@ -38,7 +38,7 @@ func (c *activationSnapshotClock) Set(now time.Time) {
 	c.now = now
 }
 
-func bugARequest(t *testing.T, f scheduledProductionFixture, method, path string, body any) (int, map[string]any) {
+func bugARequest(t *testing.T, f scheduledProductionFixture, method, path string, body any) (status int, payload map[string]any) {
 	t.Helper()
 	var data []byte
 	var err error

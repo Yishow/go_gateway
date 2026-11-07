@@ -159,19 +159,20 @@ func appendRandomScalar(current *AcquisitionRequest, scalar AcquisitionRequest, 
 	point := scalar.Points[0]
 	point.Offset = -1
 	isMC := scalar.Group.Identity.Protocol == "mc" || scalar.Group.Identity.Protocol == acquisitionProtocolMitsubishi
-	if isMC && point.NativeBits == 1 {
+	switch {
+	case isMC && point.NativeBits == 1:
 		wordAddr := (scalar.Start / 16) * 16
 		unit := NativeUnit{Area: scalar.Group.Area, Address: wordAddr, Bits: 16}
 		point.Offset = insertMCUnit(&candidate, unit)
 		point.Length = 1
 		point.NativeBits = 16
 		point.BitIndex = scalar.Start % 16
-	} else if isMC && point.NativeBits == 16 && scalarBits(point.Point.DataType) == 32 {
+	case isMC && point.NativeBits == 16 && scalarBits(point.Point.DataType) == 32:
 		unit := NativeUnit{Area: scalar.Group.Area, Address: scalar.Start, Bits: 32}
 		point.Offset = insertMCUnit(&candidate, unit)
 		point.Length = 1
 		point.NativeBits = 32
-	} else {
+	default:
 		for n := range scalar.Length {
 			address := scalar.Start + n*scalar.AddressStep
 			unit := NativeUnit{Area: scalar.Group.Area, Address: address, Bits: point.NativeBits}

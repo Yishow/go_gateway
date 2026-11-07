@@ -67,7 +67,7 @@ func TestMappingService_CreateValidateAndWriter(t *testing.T) {
 	ts := time.Date(2026, 3, 16, 12, 30, 0, 0, time.UTC)
 	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 42.5, ts), ErrSnapshotAccepted)
 	require.ErrorIs(t, writer.WriteTagValue(ctx, tagEntity.ID, 41.0, ts), ErrSnapshotAccepted)
-	require.NoError(t, writer.flushDue(ctx, ts.Add(time.Minute), false))
+	require.NoError(t, writer.flushDue(ctx, ts.Add(time.Minute)))
 
 	targetDB, err := sql.Open("sqlite", targetDSN)
 	require.NoError(t, err)

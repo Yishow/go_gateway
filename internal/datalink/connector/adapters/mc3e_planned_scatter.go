@@ -70,7 +70,7 @@ func decodeMCPlannedPoint(p optimizer.PointSlice, profile connector.ReadProfile,
 			return nil, nil, decoding.ErrShortScalar
 		}
 		u := uint32(words[p.Offset]) // #nosec G115 -- 32-bit random unit carries raw uint32 payload.
-		scalar = []int{int(uint16(u & 0xFFFF)), int(uint16(u >> 16))}
+		scalar = []int{int(u & 0xFFFF), int(u >> 16)}
 	case p.NativeBits == 16 && p.Length == width && p.Offset <= len(words)-p.Length:
 		scalar = words[p.Offset : p.Offset+p.Length]
 	default:

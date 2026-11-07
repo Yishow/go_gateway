@@ -167,11 +167,12 @@ func planScalar(source AcquisitionSource, point EffectivePoint) (plannedRequest 
 		return AcquisitionRequest{}, code
 	}
 	reason := "scalar-plan"
-	if (source.Identity.Protocol == "mc" || source.Identity.Protocol == acquisitionProtocolMitsubishi || source.Identity.Protocol == acquisitionProtocolFatek) && (capability.RandomSupport == "" || capability.RandomSupport == "unknown") {
+	switch {
+	case (source.Identity.Protocol == "mc" || source.Identity.Protocol == acquisitionProtocolMitsubishi || source.Identity.Protocol == acquisitionProtocolFatek) && (capability.RandomSupport == "" || capability.RandomSupport == "unknown"):
 		reason = "random-capability-unknown"
-	} else if isStringScalar {
+	case isStringScalar:
 		reason = "random-unsupported-type"
-	} else if (source.Identity.Protocol == "mc" || source.Identity.Protocol == acquisitionProtocolMitsubishi) && mcprotocol.IsLongTimerOrCounter(area) {
+	case (source.Identity.Protocol == "mc" || source.Identity.Protocol == acquisitionProtocolMitsubishi) && mcprotocol.IsLongTimerOrCounter(area):
 		reason = "random-unsupported-device"
 	}
 	return AcquisitionRequest{
