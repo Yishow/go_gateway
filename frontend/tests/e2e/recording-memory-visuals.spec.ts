@@ -194,7 +194,8 @@ for (const scenario of ['conflict', 'unknownLong']) test(`${scenario} keeps safe
 test('low-height safe-area sizing keeps all controls reachable', async ({ page }, info) => {
   await page.setViewportSize({ width: 768, height: 420 }); await open(page); await choose(page, 'chapters');
   const dialog = await box(page.getByRole('dialog'));
-  expect(dialog.width).toBeCloseTo(752, 0); expect(dialog.height).toBeCloseTo(404, 0);
+  expect(dialog.x).toBeCloseTo(0, 0); expect(dialog.y).toBeCloseTo(0, 0);
+  expect(dialog.width).toBeCloseTo(768, 0); expect(dialog.height).toBeCloseTo(420, 0);
   for (const id of ['home-memory-cell-40001', 'home-memory-cell-40201', 'home-memory-close', 'home-memory-back']) {
     await page.getByTestId(id).scrollIntoViewIfNeeded(); await expect(page.getByTestId(id)).toBeInViewport({ ratio: 1 });
   }
