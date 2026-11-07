@@ -33,9 +33,20 @@ beforeEach(() => {
 });
 
 describe('saved recording lifecycle authority', () => {
+  it('returns to the list when the server confirms permanent deletion', async () => {
+    const onDeleted = vi.fn(); const onChanged = vi.fn();
+    mocks.remove.mockResolvedValueOnce({ deleted: true, group_id: 'group-1', lineage_id: 'L1', deleted_generations: 2 });
+    wrap(bar({ onDeleted, onChanged })); fireEvent.click(screen.getByTestId('group-delete'));
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'deleteDialogs.recording.acknowledge' }));
+    fireEvent.click(within(dialog).getByTestId('group-delete-confirm-button'));
+    expect(await screen.findByText('deleteDialogs.recording.success')).toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: 'deleteDialogs.recording.close' })); await waitFor(() => expect(onDeleted).toHaveBeenCalledOnce());
+    expect(onChanged).not.toHaveBeenCalled();
+  });
   it('uses server stop/remove availability and actionable reasons instead of status guesses', () => {
     current.actions[1] = { action: 'stop', allowed: false, reason_code: 'successor_reserved', next_action: 'review_lifecycle', requires_review: false };
     wrap(bar());
+    expect(screen.getByTestId('group-delete')).toHaveTextContent('deleteDialogs.recording.confirm');
     expect(screen.getByTestId('group-disable')).toBeDisabled();
     expect(screen.getByTestId('saved-recording-reason-stop')).toHaveTextContent('reason.successor_reserved');
     expect(screen.getByTestId('saved-recording-reason-stop')).toHaveTextContent('next.review_lifecycle');

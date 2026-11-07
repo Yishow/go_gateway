@@ -16,11 +16,21 @@ func TestBacklogGuardDeleteMissingR0PreservesG1AndQ1(t *testing.T) {
 			db, service, mutation := backlogLifecycleFixture(t, kind)
 			_, err := db.ExecContext(t.Context(), `UPDATE `+backlogTable(kind)+` SET group_revision='R0'`)
 			require.NoError(t, err)
+			current, err := service.Get(t.Context(), "G1")
+			require.NoError(t, err)
+			require.ErrorIs(t, checkBacklogOwnership(t, db, current.Group), ErrBacklogOwnershipUnproven)
 			before := backlogOwnershipState(t, db)
 			result, err := service.Delete(t.Context(), "G1", mutation)
 			require.Nil(t, result)
-			require.ErrorIs(t, err, workspace.ErrWriteGroupLifecycleBlocked)
-			require.ErrorIs(t, err, ErrBacklogOwnershipUnproven)
+			require.ErrorContains(t, err, "WRITE_GROUP_DELETE_BACKLOG")
+			var refusal *workspace.WriteGroupDeleteError
+			require.ErrorAs(t, err, &refusal)
+			counts := refusal.Details.(workspace.WriteGroupDeleteBacklog)
+			if kind == "sample" {
+				require.Equal(t, 1, counts.SamplesUnconsumed)
+			} else {
+				require.Equal(t, map[string]int{"pending": 1}, counts.Outbox)
+			}
 			require.Equal(t, before, backlogOwnershipState(t, db), "failed remove preserves G1, Q1, immutable versions, receipts and workspace CAS")
 		})
 	}
@@ -40,22 +50,24 @@ func TestBacklogGuardDeleteRetainsHistoricalPendingOwner(t *testing.T) {
 			require.NoError(t, err)
 			mutation.ExpectedGroupRevision = "R2"
 			mutation.ExpectedConnectorRevision = "C2"
+			current, err := service.Get(t.Context(), "G1")
+			require.NoError(t, err)
+			require.NoError(t, checkBacklogOwnership(t, db, current.Group), "R1 remains owned by its frozen destination")
 			before := backlogOwnershipState(t, db)
 			result, err := service.Delete(t.Context(), "G1", mutation)
-			require.NoError(t, err)
-			require.Equal(t, workspace.WriteGroupStatusDeleted, result.Group.Status)
-			require.Equal(t, "R2", result.Group.AppliedRevision)
+			require.Nil(t, result)
+			require.ErrorContains(t, err, "WRITE_GROUP_DELETE_BACKLOG")
 			after := backlogOwnershipState(t, db)
 			for _, table := range []string{"write_group_versions", "wg_runtime_versions", "wg_delivery_samples", "wg_delivery_outbox", "wg_delivery_receipts"} {
 				require.Equal(t, before[table], after[table], table+" must remain byte-for-byte unchanged")
 			}
 			reloaded, err := service.Get(t.Context(), "G1")
 			require.NoError(t, err)
-			require.Equal(t, result.Group, reloaded.Group, "tombstone remains readable")
+			require.Equal(t, current.Group, reloaded.Group, "stopped group remains readable")
 			intake, err := service.IntakeEligibility(t.Context(), "G1")
 			require.NoError(t, err)
 			require.False(t, intake.Accepting)
-			require.Equal(t, "group-deleted", intake.Reason)
+			require.Equal(t, "group-disabled", intake.Reason)
 		})
 	}
 }
@@ -78,6 +90,8 @@ func backlogLifecycleFixture(t *testing.T, kind string) (*sql.DB, *workspace.Wri
 	_, err = db.ExecContext(t.Context(), `INSERT INTO database_connectors(id,name,kind,identity_revision,connection_config,status) VALUES(?,'test','sqlite','C1','{}','ready')`, group.Destination.ConnectorID)
 	require.NoError(t, err)
 	_, err = db.ExecContext(t.Context(), `INSERT INTO wg_delivery_receipts(effect_key,payload_digest,committed_at) VALUES('historic-receipt','historic-digest','2026-01-01T00:00:00Z')`)
+	require.NoError(t, err)
+	_, err = db.ExecContext(t.Context(), `UPDATE write_groups SET status='disabled' WHERE id='G1'`)
 	require.NoError(t, err)
 	service := workspace.NewWriteGroupService(ws, workspace.NewSQLWriteGroupRepository(db)).WithBacklogOwnershipGuard(BacklogGuard{})
 	return db, service, workspace.WriteGroupMutation{WorkspaceID: record.ID, ExpectedWorkspaceRevision: record.DatabaseSetupRevision, ExpectedGroupRevision: "R1", ExpectedConnectorRevision: "C1"}

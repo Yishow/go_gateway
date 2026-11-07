@@ -468,10 +468,9 @@ describe('studio V2 workspace write-group service', () => {
     })).rejects.toBe(axiosError);
   });
 
-  it('sends delete CAS in axios config data and returns the canonical tombstone response', async () => {
-    const deletedResponse: WriteGroupMutationResponse = {
-      ...mutationResponse,
-      group: { ...canonicalGroup, status: 'deleted' },
+  it('sends delete CAS in axios config data and returns the permanent deletion receipt', async () => {
+    const deletedResponse = {
+      deleted: true, group_id: 'group/1', lineage_id: 'lineage-1', deleted_generations: 2,
     };
     vi.mocked(studioV2DatalinkApi.delete).mockResolvedValueOnce(envelope(deletedResponse) as never);
     const request = {

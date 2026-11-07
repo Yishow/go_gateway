@@ -27,6 +27,7 @@
 | `POST /api/v1/datalink/devices` | `/studio` | 建立設備 |
 | `PUT /api/v1/datalink/devices/:id` | `/studio` | 更新設備 |
 | `DELETE /api/v1/datalink/devices/:id` | `/studio` | 刪除設備 |
+| `DELETE /api/v1/datalink/studio-v2/workspace/devices/:id` | `/studio/v2` 記錄首頁／設備頁 | 先檢查記錄引用，再以同一設定交易清除可刪的 tombstone、workspace membership、設備及其 source rules；詳細 409／提交後 500 見下方刪除契約 |
 | `POST /api/v1/datalink/devices/test-draft` | `/studio` | 測試 draft 設備連線 |
 | `POST /api/v1/datalink/devices/:id/test` | `/studio` | 測試 persisted 設備連線 |
 | `POST /api/v1/datalink/devices/:id/readiness` | 未全面接線 | 檢查設備 readiness |
@@ -75,7 +76,7 @@
 
 | API | 主用頁面 | 用途 |
 | --- | --- | --- |
-| `GET /api/v1/datalink/runtime/status` | `/studio/runtime` | truthful runtime snapshot；top-level `running`、collector `status`/`running`/availability fields、nullable availability/last-read/last-error fields，以及 per point/tag `modbus_share_delivery` diagnostics；typed failure: `runtime_snapshot_unavailable` |
+| `GET /api/v1/datalink/runtime/status` | `/studio/v2` 記錄首頁、`/studio/runtime` | truthful runtime snapshot；記錄首頁不帶 `device_id` 取得 workspace-wide collectors，可見時每 5 秒讀取、最後成功快照使用期限為 15 秒；狀態推導見 [V2/runtime inventory](./studio-v2-runtime.md)。另含 nullable availability/last-read/last-error 與 `modbus_share_delivery` diagnostics；typed failure: `runtime_snapshot_unavailable` |
 | `GET /api/v1/datalink/runtime/stream` | `/studio/runtime` | truthful value / status / heartbeat SSE；stream-state failures include typed code, `retryable`, opaque `request_id`, and actionable `action`; typed failures: `runtime_device_not_found`, `runtime_stream_unavailable` |
 | `GET /api/v1/datalink/studio-v2/workspace/runtime-context` | `/studio/runtime` | persisted device/setup context；200 response plus typed 404/503 failures (`runtime_device_not_found`, `workspace_not_ready`, `runtime_snapshot_unavailable`) |
 | `POST /api/v1/datalink/studio-v2/workspace/activate` | `/studio/v2` Step 4 | persisted workspace activation；required JSON body carries non-empty `workspace_revision`, `settings_revision`, and `readiness_token`, plus optional `pending_saves` and `save_error`; typed 400/409/422/500 failures |
@@ -104,7 +105,8 @@
 
 | API | 主用頁面 | 用途 |
 | --- | --- | --- |
-| `GET/POST /api/v1/datalink/studio-v2/workspace/write-groups`、`GET/PUT/DELETE …/write-groups/:id` | `/studio/v2` Step 4 | list／get／儲存草稿／logical delete；mutation 帶 `workspace_id` 與 expected workspace／group／connector revisions，過期 409 `revision_mismatch` |
+| `GET/POST /api/v1/datalink/studio-v2/workspace/write-groups`、`GET/PUT …/write-groups/:id` | `/studio/v2` 記錄首頁、Step 4 | list／get／儲存草稿；mutation 帶 `workspace_id` 與 expected workspace／group／connector revisions，過期 409 `revision_mismatch` |
+| `DELETE …/write-groups/:id` | `/studio/v2` 記錄首頁、Step 4 | 以相同 expected revisions 永久刪除未接收資料且無待送資料的 lineage；成功資料及 409 安全保護見下方刪除契約 |
 | `POST …/write-groups/circuit-profiles/ensure` | `/studio/v2` Step 4 | 依 circuit identity 與 profile kind (instantaneous/cumulative) 建立或複用 canonical write group，resend 回傳已存群組，同 kind 衝突 409 |
 | `GET …/write-groups/:id/readiness` | `/studio/v2` Step 4 | persisted group 與 destination schema 的唯讀就緒判定；Apply 的依據 |
 | `POST …/write-groups/:id/apply`、`/disable` | `/studio/v2` Step 4 | 套用（排入下一個 UTC bucket，不做 DDL）／停止新 intake；只帶 expected revisions |
@@ -114,6 +116,25 @@
 | `POST …/write-groups/:id/schema-preview`、`/schema-apply` | `/studio/v2` Step 4 | 管理 schema 預覽與確認套用；支援 `managed_long_v1` typed 長表布局與 TimescaleDB hypertable 模式 |
 | `POST …/write-groups/:id/test-write-preview`、`/test-write` | `/studio/v2` Step 4 | 確認式試寫：preview 不寫 target，確認後寫入、讀回、只清理自己的 row；結果 `write_outcome` 與 `cleanup_status` 分開；狀態由共用 `GET …/database-operations/:operation_id` 提供 |
 | `POST …/recording-plans/test-write-preview`、`/test-write` | （舊 plan 相容） | 只靠 group provenance 解析到唯一群組，目前一律 422 `RECORDING_TEST_WRITE_PLAN_UNRESOLVED` |
+
+## 記錄與設備刪除契約
+
+`DELETE /api/v1/datalink/studio-v2/workspace/write-groups/:id` 的 JSON body 帶 `workspace_id`、`expected_workspace_revision`、`expected_group_revision`、`expected_connector_revision`。成功 200 的 envelope 為 `{"success":true,"data":{"deleted":true,"group_id":"<id>","lineage_id":"<id>","deleted_generations":1}}`；無 lineage 的舊式單代記錄回 `lineage_id:""`、`deleted_generations:1`。原有 revision 不符仍回 409 `revision_mismatch`，遺失資源為 404。
+
+| 409 code | `action` | 條件與 `details` |
+| --- | --- | --- |
+| `WRITE_GROUP_DELETE_BACKLOG` | `stop_and_wait` | 未消化樣本或未終結 outbox；`{"samples_unconsumed":<int>,"outbox":{"<原始狀態>":<int>}}`。樣本數永遠存在，僅列出數量大於 0 的狀態，例如 `pending`、`retrying`、`unknown`、`blocked`、`quarantined`、`sending`；保留未識別狀態與個別數量。 |
+| `WRITE_GROUP_DELETE_ACTIVE` | `stop_first` | 任一 generation 仍可接收 intake；無額外 details。 |
+| `WRITE_GROUP_DELETE_OPERATION_PENDING` | `open_recording` | 後繼、cutover／handoff、schema／試寫或 recording-start 等操作尚未解決；無額外 details。 |
+| `WRITE_GROUP_DELETE_HAS_SUCCESSOR` | `open_recording` | 指定前代而後代仍存在；或已完成的跨 lineage proof 仍被其他記錄引用。後者附 `{"referenced_by":[{"id":"<id>","name":"<name>"}],"total":<int>}`，最多列 20 筆；前者可無 details。 |
+
+刪除檢查與清除在同一設定資料庫交易，拒絕時不變更資料。符合條件時清除該 lineage 的 group、版本、成員、專屬 proof 與已終結的內部交付資料（包含 `sql_committed` 與 `operator_skipped`），並保留外部目的資料庫的表與列。跨 lineage 的 cutover／handoff 若尚未完成會拒絕；完成後仍作為其他記錄的 proof 時也會拒絕，避免破壞另一筆記錄。
+
+可能保留的內部資料：`write_group_storage_scopes`、`write_group_mysql_partition_maintenance`、`write_group_sqlserver_partition_maintenance` 若仍被存續記錄的當前／歷史／runtime 版本引用，或無法證明未被引用，則保留；無可證明單一 group 所有權的 `measurement_definitions`、`recording_plans`、`gw_delivery_journal` 與未能歸屬的 operations 保留。終結的 `recording_start` ledger 也保留為 workspace／設備啟用歷史；未解決的相關 start 會阻擋刪除。成功後寫 `write_group_deleted` 稽核；稽核失敗記錄 log，不回滾刪除。
+
+`DELETE /api/v1/datalink/studio-v2/workspace/devices/:id` 成功回 `{"success":true}`。非 tombstone 記錄引用設備時回 409 `DEVICE_REFERENCED_BY_RECORDINGS`、`action=remove_recordings_first`，`details` 為 `{"recordings":[{"id":"<id>","name":"<name>"}],"total":<int>}`，最多列 20 筆。僅有可刪 tombstone 時，同一設定交易先清除 tombstone，再刪 workspace membership、設備及其 source rules；任何 tombstone 不可刪時整體回滾並回對應刪除錯誤。
+
+設備設定交易提交後才更新 Modbus Share scope 並關閉連線：Share 更新失敗回 500 `DEVICE_DELETED_SHARE_SCOPE_REFRESH_FAILED` 並維持 fail-closed；連線關閉失敗且 Share 更新未失敗時回 500 `DEVICE_DELETED_CONNECTION_CLOSE_FAILED`。這兩種 500 都表示設備設定刪除已提交，應重新整理確認，不可當成整筆交易未發生。若 tombstone 同時屬於其他設備，也會以 `DEVICE_REFERENCED_BY_RECORDINGS` 拒絕。成功後寫 `device_deleted` 稽核；稽核失敗不回滾刪除。
 
 ## Output: Database
 

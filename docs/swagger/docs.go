@@ -1986,80 +1986,6 @@ const docTemplate = `{
                         }
                     }
                 }
-            },
-            "delete": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Studio V2 Write Groups"
-                ],
-                "summary": "Tombstone a canonical write group",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Group ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Expected revisions",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.WriteGroupMutationRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.WriteGroupSaveResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.APIErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.APIErrorResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.APIErrorResponse"
-                        }
-                    },
-                    "422": {
-                        "description": "Unprocessable Entity",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.APIErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.APIErrorResponse"
-                        }
-                    },
-                    "503": {
-                        "description": "Service Unavailable",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.APIErrorResponse"
-                        }
-                    }
-                }
             }
         },
         "/datalink/studio-v2/workspace/write-groups/{id}/apply": {
@@ -3544,6 +3470,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/datalink/studio-v2/workspace/devices/{id}": {
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Devices"
+                ],
+                "summary": "Delete a workspace device",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Device ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DeviceDeleteResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/datalink/studio-v2/workspace/measurements": {
             "get": {
                 "produces": [
@@ -4094,6 +4072,82 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/datalink/studio-v2/workspace/write-groups/{id}": {
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Studio V2 Write Groups"
+                ],
+                "summary": "Permanently remove a canonical write group",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Group ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Expected revisions",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupMutationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.WriteGroupDeleteResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.APIErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
                         "schema": {
                             "$ref": "#/definitions/handlers.APIErrorResponse"
                         }
@@ -4761,35 +4815,35 @@ const docTemplate = `{
         "decoding.Policy": {
             "type": "string",
             "enum": [
+                "inherit_scalar",
+                "override_scalar",
                 "legacy_modbus",
                 "legacy_mc3e",
-                "legacy_fatek_components",
-                "inherit_scalar",
-                "override_scalar"
+                "legacy_fatek_components"
             ],
             "x-enum-varnames": [
+                "PolicyInherit",
+                "PolicyOverride",
                 "LegacyModbus",
                 "LegacyMC3E",
-                "LegacyFatek",
-                "PolicyInherit",
-                "PolicyOverride"
+                "LegacyFatek"
             ]
         },
         "decoding.Source": {
             "type": "string",
             "enum": [
+                "rule",
+                "override",
                 "point",
                 "connection",
-                "native",
-                "rule",
-                "override"
+                "native"
             ],
             "x-enum-varnames": [
+                "SourceRule",
+                "SourceOverride",
                 "SourcePoint",
                 "SourceConnection",
-                "SourceNative",
-                "SourceRule",
-                "SourceOverride"
+                "SourceNative"
             ]
         },
         "groupdelivery.AttentionItem": {
@@ -5650,6 +5704,9 @@ const docTemplate = `{
                 "code": {
                     "type": "string"
                 },
+                "details": {
+                    "type": "object"
+                },
                 "dirty_state": {
                     "type": "string"
                 },
@@ -5829,6 +5886,14 @@ const docTemplate = `{
                 },
                 "workspace_revision": {
                     "type": "string"
+                }
+            }
+        },
+        "handlers.DeviceDeleteResponse": {
+            "type": "object",
+            "properties": {
+                "success": {
+                    "type": "boolean"
                 }
             }
         },
@@ -6084,6 +6149,9 @@ const docTemplate = `{
                 "code": {
                     "type": "string"
                 },
+                "details": {
+                    "type": "object"
+                },
                 "dirty_state": {
                     "type": "string"
                 },
@@ -6157,6 +6225,34 @@ const docTemplate = `{
             "properties": {
                 "data": {
                     "$ref": "#/definitions/workspace.CutoverReview"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "handlers.WriteGroupDeleteData": {
+            "type": "object",
+            "properties": {
+                "deleted": {
+                    "type": "boolean"
+                },
+                "deleted_generations": {
+                    "type": "integer"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "lineage_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.WriteGroupDeleteResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/handlers.WriteGroupDeleteData"
                 },
                 "success": {
                     "type": "boolean"
@@ -9670,6 +9766,7 @@ const docTemplate = `{
             "enum": [
                 "none",
                 "unavailable",
+                "target-unavailable",
                 "stale-reference",
                 "foreign-scope",
                 "deleted",
@@ -9686,6 +9783,7 @@ const docTemplate = `{
             "x-enum-varnames": [
                 "ReasonNone",
                 "ReasonUnavailable",
+                "ReasonTargetUnavailable",
                 "ReasonStale",
                 "ReasonForeign",
                 "ReasonDeleted",

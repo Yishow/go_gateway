@@ -236,7 +236,7 @@ describe('RevisionSafeGroupActivation: Apply', () => {
 
 describe('GroupLifecycleWithBacklog', () => {
   it('shows what stays behind before deleting, and deletes only after confirmation', async () => {
-    api.remove.mockResolvedValue({ workspace_revision: 'wrev-2', group: savedGroup({ status: 'deleted' }) });
+    api.remove.mockResolvedValue({ deleted: true, group_id: 'group-1', lineage_id: 'L1', deleted_generations: 1 });
     mount();
     await openSaved();
     await waitFor(() => expect(screen.getByTestId('group-delete')).not.toBeDisabled());
@@ -244,7 +244,7 @@ describe('GroupLifecycleWithBacklog', () => {
     expect(await screen.findByTestId('lifecycle-pending-samples')).toHaveTextContent('1');
     expect(screen.getByTestId('lifecycle-pending-outbox')).toHaveTextContent('2');
     expect(api.remove).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByTestId('group-delete-confirm-button'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'deleteDialogs.recording.acknowledge' })); fireEvent.click(screen.getByTestId('group-delete-confirm-button'));
     await waitFor(() => expect(api.remove).toHaveBeenCalledWith('group-1', expect.objectContaining({ expected_group_revision: 'rev-1' })));
   });
 

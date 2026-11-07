@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"testing"
 
+	"go-gateway/internal/testutil/legacyrecording"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -66,9 +68,7 @@ func TestWriteGroupLifecycleHistoryKeepsFrozenDestinationAfterDraftEdit(t *testi
 func TestWriteGroupLifecycleHistoryRemovedGroupRemainsReadable(t *testing.T) {
 	f := lifecycleAPIApplied(t)
 	id := f.group["id"].(string)
-	f.groups.WithBacklogOwnershipGuard(&lifecycleAPIGuard{})
-	removed := performJSONRequest(t, f.router, http.MethodDelete, writeGroupsPath+"/"+id, groupEditRequest(f.writeGroupRouterFixture, f.data, f.group))
-	require.Equal(t, http.StatusOK, removed.Code, removed.Body.String())
+	require.NoError(t, legacyrecording.Tombstone(t.Context(), f.db, id))
 	before := lifecycleAPIState(t, f.db)
 	data := lifecycleAPIRead(t, f.writeGroupRouterFixture, id)
 	require.Equal(t, "deleted", data["status"])

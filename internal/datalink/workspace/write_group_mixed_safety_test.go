@@ -6,15 +6,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMixedDraftDeleteRetainsCanonicalIdentity(t *testing.T) {
+func TestLegacyMixedDraftTombstoneRetainsCanonicalIdentity(t *testing.T) {
 	h := newCircuitProfileHarness(t, ":memory:")
 	draft := mixedDraft(h, WriteGroupMemberCalculationLatest, 5, "retained")
 	created, err := h.service.Create(t.Context(), h.mutation(t.Context(), draft))
 	require.NoError(t, err)
-	request := h.mutation(t.Context(), created.Group)
-	request.ExpectedGroupRevision = created.Group.Revision
-	removed, err := h.service.Delete(t.Context(), created.Group.ID, request)
-	require.NoError(t, err)
+	removed := seedLegacyRecordingTombstone(t, h.db, h.service, created.Group.ID)
 	require.Equal(t, WriteGroupStatusDeleted, removed.Group.Status)
 	require.Equal(t, draft.RecordID, removed.Group.RecordID)
 	_, err = h.service.Create(t.Context(), h.mutation(t.Context(), draft))

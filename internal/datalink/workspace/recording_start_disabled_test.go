@@ -138,10 +138,7 @@ func TestRecordingStartDisabledScopeRejectsInvalidIntent(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			h, group, start, activation := disabledMixedStartFixture(t)
 			if kind == "deleted" {
-				h.service.WithBacklogOwnershipGuard(sqliteWriteGroupBacklogGuard{})
-				deleted, err := h.service.Delete(t.Context(), group.ID, mixedHistoryRequest(t, h, group))
-				require.NoError(t, err)
-				group = deleted.Group
+				group = seedLegacyRecordingTombstone(t, h.db, h.service, group.ID).Group
 			}
 			request := disabledStartRequest(t, h, group)
 			switch kind {

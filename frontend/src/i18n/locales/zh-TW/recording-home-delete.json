@@ -1,0 +1,50 @@
+{
+  "deleteDialogs": {
+    "refreshComplete": "目前清單已重新整理，請重新選取項目後繼續。",
+    "refreshFailed": "無法重新整理目前清單，請再試一次。",
+    "recording": {
+      "title": "刪除記錄？",
+      "deleted": "記錄設定、版本與內部交付紀錄將永久刪除。",
+      "retained": "外部資料庫的資料表與已寫入資料會保留：",
+      "cannotUndo": "此動作無法復原。",
+      "acknowledge": "我了解此記錄的設定會被永久刪除。",
+      "confirm": "刪除記錄",
+      "success": "記錄設定已永久刪除；目的資料表與其中的資料已保留。",
+      "close": "關閉",
+      "history": "待處理樣本與交付資料列是不同單位。已接收資料送達前仍保留原目的地。",
+      "active": "記錄仍在接收資料，請先停止記錄再刪除。",
+      "backlog": "仍有待送資料，請先停止記錄並等待送完再刪除。",
+      "operationPending": "記錄變更仍在進行中，請開啟記錄查看。",
+      "hasSuccessor": "已有後續世代，請開啟目前的記錄再刪除。",
+      "referenceTotal": "引用的記錄總數：",
+      "unknown": "無法確認是否已刪除記錄，請重新整理確認。",
+      "refused": "伺服器未完成刪除要求，請重新整理目前清單後再試。",
+      "stale": "記錄已有變更，請重新整理目前資料後再刪除。",
+      "samples": "未處理樣本數",
+      "stop": "停止記錄",
+      "stopUnavailable": "無法確認記錄能否停止，請重新整理後再試。",
+      "openRecording": "開啟記錄",
+      "refresh": "重新整理",
+      "outbox": { "pending": "待送資料列數", "queued": "排隊中資料列數", "sending": "傳送中資料列數", "retrying": "重試中資料列數", "blocked": "受阻資料列數", "quarantined": "隔離資料列數", "unknown": "結果未知資料列數", "other": "其他交付資料列數" }
+    },
+    "device": {
+      "actions": "{{name}} 的設備操作",
+      "stale": "請先重新整理設備清單，再刪除設備。",
+      "success": "設備已刪除。",
+      "title": "刪除設備？",
+      "description": "刪除設備後無法復原。",
+      "referenced": "請先刪除以下引用此設備的記錄。",
+      "blockedByRecording": "設備尚未刪除：先前移除的記錄仍需要處理，請先檢查記錄再重試。",
+      "points": "點位數",
+      "total": "記錄總數：",
+      "typeName": "請輸入完全相同的設備名稱以確認",
+      "confirm": "刪除設備",
+      "cancel": "取消",
+      "unknown": "無法確認是否已刪除設備，請重新整理確認。",
+      "refused": "伺服器未完成刪除要求，請重新整理目前清單後再試。",
+      "shareRefreshFailed": "設備已刪除，但 Modbus Share 無法更新。請重新整理並檢查 Share 後再繼續。",
+      "connectionCloseFailed": "設備已刪除，但無法關閉其連線。請重新整理並檢查連線後再繼續。",
+      "refresh": "重新整理"
+    }
+  }
+}

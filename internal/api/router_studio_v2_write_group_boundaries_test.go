@@ -64,7 +64,7 @@ func TestNewRouter_WriteGroupSafeResourcesAndRevisionErrors(t *testing.T) {
 	require.Equal(t, group, gotGroup)
 }
 
-func TestNewRouter_WriteGroupRequestValidationAndTombstone(t *testing.T) {
+func TestNewRouter_WriteGroupRequestValidationAndPermanentDelete(t *testing.T) {
 	f := newWriteGroupRouterFixture(t)
 	for _, field := range []string{"workspace_id", "expected_workspace_revision", "expected_connector_revision", "group"} {
 		t.Run("missing/"+field, func(t *testing.T) {
@@ -102,16 +102,23 @@ func TestNewRouter_WriteGroupRequestValidationAndTombstone(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, response.Code, response.Body.String())
 	deleted := performJSONRequest(t, f.router, http.MethodDelete, writeGroupsPath+"/"+id, groupEditRequest(f, data, group))
 	require.Equal(t, http.StatusOK, deleted.Code, deleted.Body.String())
-	deletedData, tombstone := groupSaveData(t, decodeJSONBody(t, deleted))
-	require.Equal(t, string(workspace.WriteGroupStatusDeleted), tombstone["status"])
-	require.Equal(t, id, tombstone["id"])
+	deletedBody := decodeJSONBody(t, deleted)
+	require.Equal(t, true, deletedBody["success"])
+	deletedData, ok := deletedBody["data"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, true, deletedData["deleted"])
+	require.Equal(t, id, deletedData["group_id"])
+	require.IsType(t, "", deletedData["lineage_id"])
+	require.EqualValues(t, 1, deletedData["deleted_generations"])
 	read := performJSONRequest(t, f.router, http.MethodGet, writeGroupsPath+"/"+id, nil)
-	gotData, gotGroup := groupSaveData(t, decodeJSONBody(t, read))
-	require.Equal(t, deletedData, gotData)
-	require.Equal(t, tombstone, gotGroup)
+	require.Equal(t, http.StatusNotFound, read.Code, read.Body.String())
+	assertWriteGroupError(t, decodeJSONBody(t, read), "WRITE_GROUP_NOT_FOUND")
 	var members int
 	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM write_group_members WHERE group_id = ?`, id).Scan(&members))
-	require.Equal(t, 1, members)
+	require.Zero(t, members)
+	var groups int
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM write_groups WHERE id = ?`, id).Scan(&groups))
+	require.Zero(t, groups)
 }
 
 func TestNewRouter_WriteGroupMissingServiceFailsClosed(t *testing.T) {

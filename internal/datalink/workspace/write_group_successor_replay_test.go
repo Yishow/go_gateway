@@ -136,8 +136,7 @@ func recreateServiceFixture(t *testing.T, path string) (*circuitProfileHarness, 
 	draft := lineageTestDraft(h, "profile")
 	draft.LayoutVersion = WriteGroupLayoutManagedLongV1
 	saved := h.mustEnsure(draft)
-	removed, err := h.service.Delete(t.Context(), saved.ID, lifecycleReadMutation(t, h.service, saved))
-	require.NoError(t, err)
+	removed := seedLegacyRecordingTombstone(t, h.db, h.service, saved.ID)
 	lineage := requireLineageGenesis(t, h.db, removed.Group)
 	return h, writeGroupRecreateReservationRequest{WorkspaceID: removed.Group.WorkspaceID, ExpectedWorkspaceRevision: removed.WorkspaceRevision,
 		LineageID: lineage, ExpectedLineageRevision: 1, PredecessorGroupID: removed.Group.ID, ExpectedPredecessorRevision: removed.Group.Revision,

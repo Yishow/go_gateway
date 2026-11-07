@@ -105,15 +105,11 @@ func TestCircuitProfileDuplicateOwnership(t *testing.T) {
 	})
 
 	t.Run("a tombstoned owner releases the source", func(t *testing.T) {
-		deleted, err := h.service.Delete(t.Context(), owner.ID, WriteGroupMutation{
-			WorkspaceID: h.fixture.workspaceID, ExpectedWorkspaceRevision: h.mutation(t.Context(), nil).ExpectedWorkspaceRevision,
-			ExpectedGroupRevision: owner.Revision, ExpectedConnectorRevision: "connector-revision-1",
-		})
-		require.NoError(t, err)
+		deleted := seedLegacyRecordingTombstone(t, h.db, h.service, owner.ID)
 		require.Equal(t, WriteGroupStatusDeleted, deleted.Group.Status)
 
 		// The create-once key is retained, so the retired circuit is not reusable.
-		_, err = h.ensure(h.draft(WriteGroupProfileInstantaneous, "circuit-a", "A", source))
+		_, err := h.ensure(h.draft(WriteGroupProfileInstantaneous, "circuit-a", "A", source))
 		require.ErrorIs(t, err, ErrWriteGroupLifecycleBlocked)
 		moved := h.mustEnsure(h.draft(WriteGroupProfileInstantaneous, "circuit-c", "C", source))
 		require.NotEqual(t, owner.ID, moved.ID)

@@ -83,7 +83,11 @@ func TestReservedSuccessorOrdinaryEntrypointsBlocked(t *testing.T) {
 					return inner
 				})
 			}
-			requireSuccessorReserved(t, err)
+			if action == "delete" {
+				require.ErrorContains(t, err, "WRITE_GROUP_DELETE_OPERATION_PENDING")
+			} else {
+				requireSuccessorReserved(t, err)
+			}
 			require.Zero(t, probe.calls)
 			require.Equal(t, before, lineageReadSnapshot(t, h))
 		})
@@ -218,10 +222,10 @@ func TestReservedSuccessorDeleteKeepsReservationReasonAfterTargetChange(t *testi
 			require.NoError(t, err)
 			before := lineageReadSnapshot(t, h)
 			_, err = h.service.Delete(t.Context(), group.ID, mutation)
-			requireSuccessorReserved(t, err)
-			var action *WriteGroupLifecycleActionError
+			require.ErrorContains(t, err, "WRITE_GROUP_DELETE_OPERATION_PENDING")
+			var action *WriteGroupDeleteError
 			require.ErrorAs(t, err, &action)
-			require.Equal(t, "review_lifecycle", action.NextAction)
+			require.Equal(t, "WRITE_GROUP_DELETE_OPERATION_PENDING", action.Code)
 			require.Equal(t, before, lineageReadSnapshot(t, h))
 			mutation.ExpectedConnectorRevision = "stale-saved-cas"
 			_, err = h.service.Delete(t.Context(), group.ID, mutation)

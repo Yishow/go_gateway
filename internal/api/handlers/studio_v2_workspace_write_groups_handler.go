@@ -2,9 +2,7 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"net/http"
-	"strings"
 
 	"go-gateway/internal/datalink/grouppipeline"
 	"go-gateway/internal/datalink/workspace"
@@ -200,16 +198,16 @@ func (h *StudioV2WorkspaceWriteGroupsHandler) Update(c *gin.Context) {
 	h.mutate(c, http.StatusOK, writeGroupUpdate)
 }
 
-// Delete tombstones a group while preserving its persisted identities.
-// @Summary Tombstone a canonical write group
+// Delete permanently removes a drained group and its internal lineage.
+// @Summary Permanently remove a canonical write group
 // @Tags Studio V2 Write Groups
 // @Accept json
 // @Produce json
 // @Param id path string true "Group ID"
 // @Param request body WriteGroupMutationRequest true "Expected revisions"
-// @Success 200 {object} WriteGroupSaveResponse
+// @Success 200 {object} WriteGroupDeleteResponse
 // @Failure 400,404,409,422,500,503 {object} APIErrorResponse
-// @Router /datalink/studio-v2/workspace/write-groups/{id} [delete]
+// @Router /v1/datalink/studio-v2/workspace/write-groups/{id} [delete]
 func (h *StudioV2WorkspaceWriteGroupsHandler) Delete(c *gin.Context) {
 	h.mutate(c, http.StatusOK, writeGroupDelete)
 }
@@ -242,73 +240,6 @@ func (h *StudioV2WorkspaceWriteGroupsHandler) Disable(c *gin.Context) {
 // @Router /datalink/studio-v2/workspace/write-groups/{id}/apply [post]
 func (h *StudioV2WorkspaceWriteGroupsHandler) Apply(c *gin.Context) {
 	h.mutate(c, http.StatusOK, writeGroupApply)
-}
-
-type writeGroupMutationAction string
-
-const (
-	writeGroupCreate  writeGroupMutationAction = "create"
-	writeGroupUpdate  writeGroupMutationAction = "update"
-	writeGroupDelete  writeGroupMutationAction = "delete"
-	writeGroupDisable writeGroupMutationAction = "disable"
-	writeGroupApply   writeGroupMutationAction = "apply"
-)
-
-func (h *StudioV2WorkspaceWriteGroupsHandler) mutate(c *gin.Context, status int, action writeGroupMutationAction) {
-	if !h.available(c) {
-		return
-	}
-	var request WriteGroupMutationRequest
-	// Create and ensure address no existing group, so they carry no group revision.
-	create := action == writeGroupCreate || action == writeGroupEnsureCircuitProfile
-	requireGroup := create || action == writeGroupUpdate
-	bindErr := c.ShouldBindJSON(&request)
-	if errors.Is(bindErr, workspace.ErrWriteGroupProfileIntervalInvalid) || errors.Is(bindErr, workspace.ErrWriteGroupMemberMetadataInvalid) {
-		renderWriteGroupError(c, bindErr)
-		return
-	}
-	if bindErr != nil ||
-		strings.TrimSpace(request.WorkspaceID) == "" || request.ExpectedWorkspaceRevision == nil ||
-		request.ExpectedConnectorRevision == nil || strings.TrimSpace(*request.ExpectedConnectorRevision) == "" ||
-		(!create && (request.ExpectedGroupRevision == nil || strings.TrimSpace(*request.ExpectedGroupRevision) == "")) ||
-		(requireGroup && request.Group == nil) {
-		renderWriteGroupTyped(c, http.StatusBadRequest, "WRITE_GROUP_INVALID_REQUEST", "write-group request is incomplete", false, "review_request")
-		return
-	}
-	mutation := workspace.WriteGroupMutation{
-		WorkspaceID: request.WorkspaceID, ExpectedWorkspaceRevision: *request.ExpectedWorkspaceRevision,
-		ExpectedConnectorRevision: *request.ExpectedConnectorRevision, Group: request.Group,
-	}
-	if request.ExpectedGroupRevision != nil {
-		mutation.ExpectedGroupRevision = *request.ExpectedGroupRevision
-	}
-	var result *workspace.WriteGroupSaveResult
-	var err error
-	switch action {
-	case writeGroupCreate:
-		result, err = h.groups.Create(c.Request.Context(), mutation)
-	case writeGroupEnsureCircuitProfile:
-		result, err = h.groups.EnsureCircuitProfile(c.Request.Context(), mutation)
-	case writeGroupDelete:
-		result, err = h.groups.Delete(c.Request.Context(), c.Param("id"), mutation)
-	case writeGroupDisable:
-		result, err = h.groups.Disable(c.Request.Context(), c.Param("id"), mutation)
-	case writeGroupUpdate:
-		result, err = h.groups.Update(c.Request.Context(), c.Param("id"), mutation)
-	case writeGroupApply:
-		result, err = h.groups.Apply(c.Request.Context(), c.Param("id"), mutation)
-	default:
-		err = workspace.ErrWriteGroupValidation
-	}
-	if err != nil {
-		if action != writeGroupDelete && errors.Is(err, workspace.ErrWriteGroupLifecycleBlocked) {
-			renderWriteGroupTyped(c, http.StatusConflict, "WRITE_GROUP_LIFECYCLE_BLOCKED", "write group cannot be changed in its current lifecycle state", false, "reload")
-			return
-		}
-		renderWriteGroupError(c, err)
-		return
-	}
-	c.JSON(status, WriteGroupSaveResponse{Success: true, Data: result})
 }
 
 func (h *StudioV2WorkspaceWriteGroupsHandler) available(c *gin.Context) bool {

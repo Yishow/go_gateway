@@ -1,6 +1,7 @@
 import { configReadContext, configReadKey } from '@/hooks/datalink/recordingConfigRefresh';
 import { recordingHomeSourcesAPI } from '@/services/recordingHomeSources';
 import { homeSources } from './recording-home-source-fixtures';
+import { homeDeviceAction } from './recording-home-device-actions';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, afterEach, expect, it, vi } from 'vitest';
@@ -59,7 +60,7 @@ async function openMC() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } });
   render(<QueryClientProvider client={client}><DatalinkWorkbenchV2Page presentation="recordings" locatorIntent={{ kind: 'absent' }}
     presentationLocation={{ search: '?view=recordings', hash: '#home' }} navigateTo={vi.fn()} /></QueryClientProvider>);
-  fireEvent.click(await screen.findByTestId('home-device-points-D'));
+  fireEvent.click(await homeDeviceAction());
   const dialog = await screen.findByRole('dialog');
   await within(dialog).findByTestId('home-saved-range-form');
   await waitFor(() => expect(within(dialog).queryByTestId('rule-mc-persisted-status')).not.toBeInTheDocument());

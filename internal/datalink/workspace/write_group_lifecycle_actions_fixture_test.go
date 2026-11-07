@@ -6,8 +6,18 @@ import (
 	"testing"
 	"time"
 
+	"go-gateway/internal/testutil/legacyrecording"
+
 	"github.com/stretchr/testify/require"
 )
+
+func seedLegacyRecordingTombstone(t *testing.T, db *sql.DB, service *WriteGroupService, id string) *WriteGroupSaveResult {
+	t.Helper()
+	require.NoError(t, legacyrecording.Tombstone(t.Context(), db, id))
+	result, err := service.Get(t.Context(), id)
+	require.NoError(t, err)
+	return result
+}
 
 func lifecycleReadFixture(t *testing.T, applied bool) (*sql.DB, *WriteGroupService, *WriteGroup) {
 	t.Helper()

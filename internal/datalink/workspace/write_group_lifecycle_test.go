@@ -183,28 +183,11 @@ func TestGroupLifecycleApplySwitchesAtNextBucketWithoutChangingStableID(t *testi
 }
 
 func TestGroupLifecycleDeleteAppliedRequiresOwnershipGuard(t *testing.T) {
-	ctx := t.Context()
-	db := openWorkspaceTestDB(t, ":memory:")
-	defer db.Close()
-	fixture := seedWriteGroupFixture(ctx, t, db)
-	workspaceSvc := NewService(NewSQLRepository(db))
-	service := NewWriteGroupService(workspaceSvc, NewSQLWriteGroupRepository(db))
-	current, err := workspaceSvc.GetOrCreate(ctx)
-	require.NoError(t, err)
-	created, err := service.Create(ctx, WriteGroupMutation{
-		WorkspaceID: fixture.workspaceID, ExpectedWorkspaceRevision: current.DatabaseSetupRevision,
-		ExpectedConnectorRevision: "connector-revision-1", Group: newBasicWriteGroup(fixture),
-	})
-	require.NoError(t, err)
-	_, err = db.ExecContext(ctx, `UPDATE write_groups SET applied_revision = ? WHERE id = ?`, "applied-1", created.Group.ID)
-	require.NoError(t, err)
-	beforeDelete, err := workspaceSvc.GetOrCreate(ctx)
-	require.NoError(t, err)
-	_, err = service.Delete(ctx, created.Group.ID, WriteGroupMutation{
-		WorkspaceID: fixture.workspaceID, ExpectedWorkspaceRevision: beforeDelete.DatabaseSetupRevision,
-		ExpectedGroupRevision: created.Group.Revision, ExpectedConnectorRevision: "connector-revision-1",
-	})
+	db, service, group := lifecycleReadFixture(t, true)
+	before := lifecycleReadState(t, db)
+	_, err := service.Delete(t.Context(), group.ID, lifecycleReadMutation(t, service, group))
 	require.ErrorIs(t, err, ErrWriteGroupLifecycleBlocked)
+	require.Equal(t, before, lifecycleReadState(t, db))
 }
 
 func TestGroupLifecycleApplyRollsBackVersionAndGroupWhenWorkspaceSaveFails(t *testing.T) {
@@ -241,36 +224,17 @@ func TestGroupLifecycleApplyRollsBackVersionAndGroupWhenWorkspaceSaveFails(t *te
 	require.Zero(t, versionCount)
 }
 
-func TestGroupLifecycleDeleteGuardFailureLeavesTombstoneAndBacklogUntouched(t *testing.T) {
-	ctx := t.Context()
-	db := openWorkspaceTestDB(t, ":memory:")
-	defer db.Close()
-	fixture := seedWriteGroupFixture(ctx, t, db)
-	workspaceSvc := NewService(NewSQLRepository(db))
-	service := NewWriteGroupService(workspaceSvc, NewSQLWriteGroupRepository(db))
-	current, err := workspaceSvc.GetOrCreate(ctx)
-	require.NoError(t, err)
-	created, err := service.Create(ctx, WriteGroupMutation{
-		WorkspaceID: fixture.workspaceID, ExpectedWorkspaceRevision: current.DatabaseSetupRevision,
-		ExpectedConnectorRevision: "connector-revision-1", Group: newBasicWriteGroup(fixture),
-	})
-	require.NoError(t, err)
-	_, err = db.ExecContext(ctx, `UPDATE write_groups SET applied_revision = ? WHERE id = ?`, "applied-1", created.Group.ID)
-	require.NoError(t, err)
+func TestGroupLifecycleDeleteGuardFailureLeavesGroupUntouched(t *testing.T) {
+	db, service, group := lifecycleReadFixture(t, true)
+	cause := errors.New("legacy backlog ownership unavailable")
 	service.WithBacklogOwnershipGuard(writeGroupBacklogGuardFunc(func(context.Context, *sql.Tx, *WriteGroup) error {
-		return errors.New("legacy backlog ownership unavailable")
+		return cause
 	}))
-	beforeWorkspace, err := workspaceSvc.GetOrCreate(ctx)
-	require.NoError(t, err)
-	_, err = service.Delete(ctx, created.Group.ID, WriteGroupMutation{
-		WorkspaceID: fixture.workspaceID, ExpectedWorkspaceRevision: beforeWorkspace.DatabaseSetupRevision,
-		ExpectedGroupRevision: created.Group.Revision, ExpectedConnectorRevision: "connector-revision-1",
-	})
+	before := lifecycleReadState(t, db)
+	_, err := service.Delete(t.Context(), group.ID, lifecycleReadMutation(t, service, group))
 	require.ErrorIs(t, err, ErrWriteGroupLifecycleBlocked)
-	after, err := service.Get(ctx, created.Group.ID)
-	require.NoError(t, err)
-	require.Equal(t, WriteGroupStatusDraft, after.Group.Status)
-	require.Equal(t, "applied-1", after.Group.AppliedRevision)
+	require.ErrorIs(t, err, cause)
+	require.Equal(t, before, lifecycleReadState(t, db))
 }
 
 func TestGroupLifecycleDeleteWithOutboxPreservesPayloadAndReceipt(t *testing.T) {
@@ -320,15 +284,15 @@ func TestGroupLifecycleDeleteWithOutboxPreservesPayloadAndReceipt(t *testing.T) 
 	}))
 	service.WithBacklogOwnershipGuard(sqliteWriteGroupBacklogGuard{})
 
-	beforeDelete, err := service.workspaceSvc.GetOrCreate(ctx)
+	stopped, err := service.Disable(ctx, secondApplied.Group.ID, lifecycleReadMutation(t, service, secondApplied.Group))
 	require.NoError(t, err)
-	deleted, err := service.Delete(ctx, secondApplied.Group.ID, WriteGroupMutation{
-		WorkspaceID: fixture.workspaceID, ExpectedWorkspaceRevision: beforeDelete.DatabaseSetupRevision,
-		ExpectedGroupRevision: secondApplied.Group.Revision, ExpectedConnectorRevision: "connector-revision-1",
-	})
-	require.NoError(t, err)
-	require.Equal(t, WriteGroupStatusDeleted, deleted.Group.Status)
-	require.Equal(t, secondApplied.Group.AppliedRevision, deleted.Group.AppliedRevision)
+	beforeDelete := lifecycleReadState(t, db)
+	_, err = service.Delete(ctx, secondApplied.Group.ID, lifecycleReadMutation(t, service, stopped.Group))
+	require.ErrorContains(t, err, "WRITE_GROUP_DELETE_BACKLOG")
+	var refusal *WriteGroupDeleteError
+	require.ErrorAs(t, err, &refusal)
+	require.Equal(t, map[string]int{"pending": 1}, refusal.Details.(WriteGroupDeleteBacklog).Outbox)
+	require.Equal(t, beforeDelete, lifecycleReadState(t, db))
 
 	var persistedPayload []byte
 	require.NoError(t, db.QueryRowContext(ctx, `SELECT payload FROM gw_delivery_outbox WHERE id = ?`, "outbox-1").Scan(&persistedPayload))
@@ -360,7 +324,7 @@ func TestGroupLifecycleDeleteWithOutboxPreservesPayloadAndReceipt(t *testing.T) 
 	require.True(t, hasReceipt)
 	reloaded, err := service.Get(ctx, secondApplied.Group.ID)
 	require.NoError(t, err)
-	require.Equal(t, deleted.Group, reloaded.Group)
+	require.Equal(t, stopped.Group, reloaded.Group)
 }
 
 type deliverySenderFunc func(context.Context, *delivery.OutboxItem) error

@@ -1,0 +1,50 @@
+{
+  "deleteDialogs": {
+    "refreshComplete": "The current list was refreshed. Select the item again to continue.",
+    "refreshFailed": "Could not refresh the current list. Try again.",
+    "recording": {
+      "title": "Delete recording?",
+      "deleted": "The recording settings, versions, and internal delivery history will be permanently deleted.",
+      "retained": "The external database table and its written rows will be retained:",
+      "cannotUndo": "This action cannot be undone.",
+      "acknowledge": "I understand the recording settings will be permanently deleted.",
+      "confirm": "Delete recording",
+      "success": "The recording settings were permanently deleted. The destination table and its rows were retained.",
+      "close": "Close",
+      "history": "Pending samples and delivery rows use different units. Accepted data keeps its original destination until delivered.",
+      "active": "Recording is still accepting data. Stop it before deleting.",
+      "backlog": "Pending data remains. Stop recording and wait for delivery before deleting.",
+      "operationPending": "A recording change is still in progress. Open the recording to review it.",
+      "hasSuccessor": "A later generation exists. Open the current recording to delete it.",
+      "referenceTotal": "Total dependent recordings:",
+      "unknown": "Could not confirm whether the recording was deleted. Refresh to check.",
+      "refused": "The server could not complete the deletion request. Refresh the current list before trying again.",
+      "stale": "The recording changed. Refresh its current details before deleting.",
+      "samples": "Unconsumed samples",
+      "stop": "Stop recording",
+      "stopUnavailable": "Could not confirm that recording can be stopped. Refresh and try again.",
+      "openRecording": "Open recording",
+      "refresh": "Refresh",
+      "outbox": { "pending": "Pending delivery rows", "queued": "Queued delivery rows", "sending": "Sending delivery rows", "retrying": "Retrying delivery rows", "blocked": "Blocked delivery rows", "quarantined": "Quarantined delivery rows", "unknown": "Delivery rows with unknown outcome", "other": "Other delivery rows" }
+    },
+    "device": {
+      "actions": "Actions for {{name}}",
+      "stale": "Refresh the device list before deleting.",
+      "success": "The device was deleted.",
+      "title": "Delete device?",
+      "description": "Deleting a device cannot be undone.",
+      "referenced": "Delete the following recordings before deleting this device.",
+      "blockedByRecording": "The device was not deleted because a previously removed recording still needs attention. Review the recording before trying again.",
+      "points": "Points",
+      "total": "Total recordings:",
+      "typeName": "Type the exact device name to confirm",
+      "confirm": "Delete device",
+      "cancel": "Cancel",
+      "unknown": "Could not confirm whether the device was deleted. Refresh to check.",
+      "refused": "The server could not complete the deletion request. Refresh the current list before trying again.",
+      "shareRefreshFailed": "The device was deleted, but Modbus Share could not refresh. Refresh and review Share before continuing.",
+      "connectionCloseFailed": "The device was deleted, but its connection could not be closed. Refresh and review the connection before continuing.",
+      "refresh": "Refresh"
+    }
+  }
+}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"go-gateway/internal/datalink/workspace"
+	"go-gateway/internal/testutil/legacyrecording"
 
 	"github.com/stretchr/testify/require"
 )
@@ -177,8 +178,7 @@ func TestAppliedConfigurationRejectsAbsentScopeAndDependencies(t *testing.T) {
 	got, err = f.pipe.ResolveAppliedConfigurationAt(ctx, saved.Group.ID, at(16))
 	require.Nil(t, got)
 	require.ErrorIs(t, err, context.Canceled)
-	_, err = f.groups.Delete(t.Context(), saved.Group.ID, f.mutation(t, nil))
-	require.NoError(t, err)
+	require.NoError(t, legacyrecording.Tombstone(t.Context(), f.db, saved.Group.ID))
 	before := appliedConfigurationState(t, f.db)
 	got, err = f.pipe.ResolveAppliedConfigurationAt(t.Context(), saved.Group.ID, at(16))
 	require.NoError(t, err)

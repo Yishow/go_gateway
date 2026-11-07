@@ -1,0 +1,29 @@
+{
+  "rowEvidence": {
+    "stagesFor": "「{{name}}」的寫入階段",
+    "stage": { "configuration": "設定", "activation": "啟用", "sql": "SQL 寫入", "readback": "回讀" },
+    "state": { "complete": "完成", "unconfirmed": "未確認", "attention": "需要注意" },
+    "draftNotRequested": "草稿未要求啟用",
+    "historical": "歷史寫入",
+    "testWriteReadback": "試寫回讀",
+    "cleanupUnknown": "尚未確認試寫清理狀態",
+    "evidenceUnavailable": "無法取得寫入證據，請重新整理確認。",
+    "copyTable": "複製目的地資料表",
+    "copied": "已複製目的地資料表",
+    "copyFailed": "無法複製，已選取資料表名稱供手動複製",
+    "actionsFor": "「{{name}}」的操作",
+    "stop": "停止",
+    "delete": "刪除記錄",
+    "reloadHint": "操作資訊已過期，請重新整理後再試。",
+    "noActions": "這筆記錄目前沒有可用操作。",
+    "stopFailed": "無法確認停止結果，請先重新整理再試。",
+    "secondsAgo_one": "{{count}} 秒前",
+    "secondsAgo_other": "{{count}} 秒前",
+    "minutesAgo_one": "{{count}} 分鐘前",
+    "minutesAgo_other": "{{count}} 分鐘前",
+    "hoursAgo_one": "{{count}} 小時前",
+    "hoursAgo_other": "{{count}} 小時前",
+    "daysAgo_one": "{{count}} 天前",
+    "daysAgo_other": "{{count}} 天前"
+  }
+}

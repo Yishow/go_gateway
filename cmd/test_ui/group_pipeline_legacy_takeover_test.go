@@ -75,7 +75,18 @@ func TestProductionLegacyTakeoverSurvivesLifecycle(t *testing.T) {
 			case "disable":
 				_, err = env.services.writeGroups.Disable(t.Context(), group.ID, lifecycleMutation(t, env, group.ID))
 			case "delete":
+				before, e := env.services.writeGroups.Get(t.Context(), group.ID)
+				require.NoError(t, e)
+				beforeRows := recordingDeleteState(t, env, group.ID)
 				_, err = env.services.writeGroups.Delete(t.Context(), group.ID, lifecycleMutation(t, env, group.ID))
+				var refusal *workspace.WriteGroupDeleteError
+				require.ErrorAs(t, err, &refusal)
+				require.Equal(t, "WRITE_GROUP_DELETE_ACTIVE", refusal.Code)
+				after, e := env.services.writeGroups.Get(t.Context(), group.ID)
+				require.NoError(t, e)
+				require.Equal(t, before, after, "refused deletion preserves the recording")
+				require.Equal(t, beforeRows, recordingDeleteState(t, env, group.ID))
+				_, err = env.services.writeGroups.Disable(t.Context(), group.ID, lifecycleMutation(t, env, group.ID))
 			case "destination":
 				target, e := sql.Open("sqlite", env.targets["connector-B"])
 				require.NoError(t, e)
@@ -104,6 +115,17 @@ func TestProductionLegacyTakeoverSurvivesLifecycle(t *testing.T) {
 			require.Equal(t, 2, legacyWriterCount(t, env, "connector-A"), "restart retains original destination ownership")
 			if action == "destination" {
 				require.Zero(t, legacyWriterCount(t, env, "connector-B"))
+			}
+			if action == "delete" {
+				deleted, e := env.services.writeGroups.Delete(t.Context(), group.ID, lifecycleMutation(t, env, group.ID))
+				require.NoError(t, e)
+				require.True(t, deleted.Deleted)
+				target, e := sql.Open("sqlite", env.targets["connector-A"])
+				require.NoError(t, e)
+				var count int
+				require.NoError(t, target.QueryRowContext(t.Context(), `SELECT count(*) FROM legacy_values`).Scan(&count))
+				require.NoError(t, target.Close())
+				require.Equal(t, 2, count, "permanent deletion preserves destination rows")
 			}
 		})
 	}

@@ -25,6 +25,15 @@ var ErrBacklogOwnershipUnproven = errors.New("accepted data ownership cannot be 
 type BacklogGuard struct{}
 
 var _ workspace.WriteGroupBacklogOwnershipGuard = BacklogGuard{}
+var _ workspace.WriteGroupDeletionBacklogGuard = BacklogGuard{}
+
+// CountWriteGroupDeleteBacklog separates unconsumed samples and outbox states.
+func (BacklogGuard) CountWriteGroupDeleteBacklog(ctx context.Context, tx *sql.Tx, group *workspace.WriteGroup, repo *workspace.SQLWriteGroupRepository) (workspace.WriteGroupDeleteBacklog, error) {
+	if group == nil || group.ID == "" || group.WorkspaceID == "" || repo == nil || tx == nil {
+		return workspace.WriteGroupDeleteBacklog{}, ErrBacklogOwnershipUnproven
+	}
+	return repo.CountWriteGroupDeleteBacklog(ctx, tx, group.ID)
+}
 
 // CheckWriteGroupBacklog reads only through tx.
 func (BacklogGuard) CheckWriteGroupBacklog(ctx context.Context, tx *sql.Tx, group *workspace.WriteGroup) error {

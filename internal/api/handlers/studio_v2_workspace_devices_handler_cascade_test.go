@@ -43,7 +43,7 @@ func TestStudioV2WorkspaceDevicesHandler_DeleteCascadesOwnedSourceRulesInSQLite(
 	seedSQLiteCascadeRule(ctx, t, sourceRuleRepo, "rule-target", "device-target")
 	seedSQLiteCascadeRule(ctx, t, sourceRuleRepo, "rule-peer", "device-peer")
 
-	handler := NewStudioV2WorkspaceDevicesHandler(workspaceSvc, deviceSvc)
+	handler := NewStudioV2WorkspaceDevicesHandler(workspaceSvc, deviceSvc).WithWriteGroups(workspace.NewWriteGroupService(workspaceSvc, workspace.NewSQLWriteGroupRepository(db)))
 	req := httptest.NewRequestWithContext(ctx, http.MethodDelete, "/api/v1/datalink/studio-v2/workspace/devices/device-target", http.NoBody)
 	resp := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(resp)

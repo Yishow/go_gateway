@@ -104,6 +104,12 @@ func TestProductionLifecycleKilledHistoricalJournalDrainsOriginalRevision(t *tes
 				var committedEffect string
 				require.NoError(t, env.db.QueryRowContext(t.Context(), `SELECT effect_key FROM wg_delivery_receipts`).Scan(&committedEffect))
 				require.Equal(t, effect, committedEffect, "delivery keeps the original effect identity")
+				if action == "delete" {
+					deleted, err := env.services.writeGroups.Delete(t.Context(), group.ID, lifecycleMutation(t, env, group.ID))
+					require.NoError(t, err)
+					require.True(t, deleted.Deleted)
+					require.Equal(t, [][2]float64{{2, 20}}, target.rows(), "purging the tombstone preserves delivered rows")
+				}
 			})
 		}
 	}

@@ -9,6 +9,7 @@ import type { WriteGroupDelivery } from '@/types/studioV2WriteGroupDelivery';
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import workbench from '@/i18n/locales/en/workbench-v2.json';
 import lifecycleLabels from '@/i18n/locales/en/recording-lifecycle.json';
+import deleteLabels from '@/i18n/locales/en/recording-home-delete.json';
 import guided from '@/i18n/locales/en/workbench-v2-recording-guided.json';
 import { savedGroup } from '../../fixtures/writeGroupState';
 const api = vi.hoisted(() => ({ lifecycle: vi.fn(), list: vi.fn(), delivery: vi.fn(), apply: vi.fn(), disable: vi.fn(), remove: vi.fn(), ensureCircuitProfile: vi.fn(), ensureBasic: vi.fn(), create: vi.fn(), update: vi.fn(), start: vi.fn() }));
@@ -37,12 +38,12 @@ function delivery(): WriteGroupDelivery {
 }
 let current: WriteGroupLifecycle;
 beforeAll(async () => { await i18n.use(initReactI18next).init({ lng: 'en', fallbackLng: 'en', interpolation: { escapeValue: false }, resources: {
-  en: { 'workbench-v2': workbench, 'recording-lifecycle': lifecycleLabels, 'workbench-v2-recording-guided': guided } } }); });
+  en: { 'workbench-v2': workbench, 'recording-lifecycle': lifecycleLabels, 'recording-home': deleteLabels, 'workbench-v2-recording-guided': guided } } }); });
 beforeEach(() => { vi.clearAllMocks(); current = snapshot();
   api.lifecycle.mockImplementation(async () => current); api.delivery.mockResolvedValue(delivery());
   api.list.mockResolvedValue({ workspace_id: 'ws-1', workspace_revision: 'W1', groups: [original] });
   api.disable.mockResolvedValue({ workspace_revision: 'W2', group: { ...original, status: 'disabled' } });
-  api.remove.mockResolvedValue({ workspace_revision: 'W2', group: { ...original, status: 'deleted' } }); });
+  api.remove.mockResolvedValue({ deleted: true, group_id: 'G1', lineage_id: 'lineage-G1', deleted_generations: 1 }); });
 afterEach(() => { cleanup(); clients.splice(0).forEach(client => client.clear()); });
 function host(group = original, managed: boolean | 'without-host' = true, readonly = false) {
   const onOpen = vi.fn(), onAction = vi.fn(), onReload = vi.fn(), tryAcquire = vi.fn(() => true);
@@ -118,7 +119,8 @@ describe('saved-card lifecycle integration and negative authority paths', () => 
   it('discloses G1 queued Q1 original destination/history and separate units, then cancel returns focus without mutation', async () => {
     host(); await ready(); const trigger = screen.getByTestId('group-delete'); trigger.focus(); fireEvent.click(trigger);
     const dialog = await screen.findByRole('alertdialog');
-    expect(dialog).toHaveTextContent('Accepted backlog continues to its original destination'); expect(dialog).toHaveTextContent('SQL tables, recorded history and delivery receipts are kept');
+    expect(dialog).toHaveTextContent('The recording settings, versions, and internal delivery history will be permanently deleted'); expect(dialog).toHaveTextContent('The external database table and its written rows will be retained');
+    expect(dialog).toHaveTextContent('Pending samples and delivery rows use different units'); expect(dialog).toHaveTextContent('original destination until delivered');
     expect(within(dialog).getByTestId('lifecycle-pending-samples')).toHaveTextContent('11');
     expect(within(dialog).getByTestId('lifecycle-pending-outbox')).toHaveTextContent('1');
     expect(dialog).toHaveTextContent('Original connection'); expect(dialog).toHaveTextContent('conn-1');
@@ -132,9 +134,13 @@ describe('saved-card lifecycle integration and negative authority paths', () => 
     expect(api.lifecycle).toHaveBeenCalledTimes(2);
     api.remove.mockImplementationOnce(async () => {
       expect(api.lifecycle).toHaveBeenCalledTimes(3); // Initial, review and explicit confirm each inspect the existing owner.
-      return { workspace_revision: 'W2', group: { ...original, status: 'deleted' } };
+      return { deleted: true, group_id: 'G1', lineage_id: 'lineage-G1', deleted_generations: 1 };
     });
+    expect(within(dialog).getByTestId('group-delete-confirm-button')).toBeDisabled();
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'I understand the recording settings will be permanently deleted.' }));
     fireEvent.click(within(dialog).getByTestId('group-delete-confirm-button'));
+    expect(await within(dialog).findByText('The recording settings were permanently deleted. The destination table and its rows were retained.')).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
     await waitFor(() => expect(view.onReload).toHaveBeenCalledOnce());
     expect(api.lifecycle).toHaveBeenCalledTimes(4); // Unchanged native mutation invalidation refreshes the fourth read.
     expect(api.remove).toHaveBeenCalledExactlyOnceWith('G1', { workspace_id: 'ws-1', expected_workspace_revision: 'W1', expected_group_revision: 'rev-1', expected_connector_revision: 'crev-1' });

@@ -3,7 +3,6 @@ package workspace
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -215,7 +214,7 @@ func TestWriteGroupServiceForeignAndUnknownAreSafeNotFound(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotFound)
 }
 
-func TestWriteGroupServiceDeleteTombstonesDraftAndBlocksApplied(t *testing.T) {
+func TestWriteGroupServiceDeletePermanentlyRemovesDraft(t *testing.T) {
 	ctx := t.Context()
 	db := openWorkspaceTestDB(t, ":memory:")
 	defer db.Close()
@@ -236,25 +235,15 @@ func TestWriteGroupServiceDeleteTombstonesDraftAndBlocksApplied(t *testing.T) {
 		ExpectedGroupRevision: created.Group.Revision, ExpectedConnectorRevision: "connector-revision-1",
 	})
 	require.NoError(t, err)
-	require.Equal(t, WriteGroupStatusDeleted, deleted.Group.Status)
-	reloaded, err := service.Get(ctx, created.Group.ID)
-	require.NoError(t, err)
-	require.Equal(t, WriteGroupStatusDeleted, reloaded.Group.Status)
+	require.True(t, deleted.Deleted)
+	require.Equal(t, created.Group.ID, deleted.GroupID)
+	require.Equal(t, 1, deleted.DeletedGenerations)
+	_, err = service.Get(ctx, created.Group.ID)
+	require.ErrorIs(t, err, ErrWriteGroupNotFound)
 	workspace, err := workspaceSvc.GetOrCreate(ctx)
 	require.NoError(t, err)
-	require.Len(t, workspace.DatabaseRowGroups, 1)
-	require.Equal(t, created.Group.ID, workspace.DatabaseRowGroups[0].ID)
-
-	_, err = db.ExecContext(ctx, `UPDATE write_groups SET applied_revision = ? WHERE id = ?`, "applied-1", created.Group.ID)
-	require.NoError(t, err)
-	beforeBlocked, err := workspaceSvc.GetOrCreate(ctx)
-	require.NoError(t, err)
-	_, err = service.Delete(ctx, created.Group.ID, WriteGroupMutation{
-		WorkspaceID: fixture.workspaceID, ExpectedWorkspaceRevision: beforeBlocked.DatabaseSetupRevision,
-		ExpectedGroupRevision: deleted.Group.Revision, ExpectedConnectorRevision: "connector-revision-1",
-	})
-	require.ErrorIs(t, err, ErrWriteGroupLifecycleBlocked)
-	require.True(t, errors.Is(err, ErrWriteGroupLifecycleBlocked))
+	require.Empty(t, workspace.DatabaseRowGroups)
+	require.Empty(t, workspace.DatabaseTargetRefs)
 }
 
 func TestWriteGroupServiceUpdateCannotReviveDeletedGroup(t *testing.T) {
@@ -271,13 +260,7 @@ func TestWriteGroupServiceUpdateCannotReviveDeletedGroup(t *testing.T) {
 		ExpectedConnectorRevision: "connector-revision-1", Group: newBasicWriteGroup(fixture),
 	})
 	require.NoError(t, err)
-	beforeDelete, err := workspaceSvc.GetOrCreate(ctx)
-	require.NoError(t, err)
-	deleted, err := service.Delete(ctx, created.Group.ID, WriteGroupMutation{
-		WorkspaceID: fixture.workspaceID, ExpectedWorkspaceRevision: beforeDelete.DatabaseSetupRevision,
-		ExpectedGroupRevision: created.Group.Revision, ExpectedConnectorRevision: "connector-revision-1",
-	})
-	require.NoError(t, err)
+	deleted := seedLegacyRecordingTombstone(t, db, service, created.Group.ID)
 	afterDelete, err := workspaceSvc.GetOrCreate(ctx)
 	require.NoError(t, err)
 	revive := cloneWriteGroup(deleted.Group)

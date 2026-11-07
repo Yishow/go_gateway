@@ -16,6 +16,12 @@ import enTheme from './locales/en/theme.json';
 import zhTWTheme from './locales/zh-TW/theme.json';
 import enRecordingHome from './locales/en/recording-home.json';
 import zhTWRecordingHome from './locales/zh-TW/recording-home.json';
+import enRecordingHomeStatus from './locales/en/recording-home-status.json';
+import zhTWRecordingHomeStatus from './locales/zh-TW/recording-home-status.json';
+import enRecordingHomeRows from './locales/en/recording-home-rows.json';
+import zhTWRecordingHomeRows from './locales/zh-TW/recording-home-rows.json';
+import enRecordingHomeDelete from './locales/en/recording-home-delete.json';
+import zhTWRecordingHomeDelete from './locales/zh-TW/recording-home-delete.json';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
@@ -69,7 +75,7 @@ i18n
   .init({
     resources: {
       en: {
-        'recording-home': enRecordingHome,
+        'recording-home': mergeTranslations(enRecordingHome, enRecordingHomeStatus, enRecordingHomeRows, enRecordingHomeDelete),
         'recording-editor': enRecordingEditor,
         'recording-editor-constraints': enRecordingEditorConstraints,
         'parameter-help': { ...enParameterHelp, ...enParameterHelpAdvanced },
@@ -96,7 +102,7 @@ i18n
         'recording-lifecycle': mergeTranslations(enRecordingLifecycle, enRecordingLifecycleDialog),
       },
       'zh-TW': {
-        'recording-home': zhTWRecordingHome,
+        'recording-home': mergeTranslations(zhTWRecordingHome, zhTWRecordingHomeStatus, zhTWRecordingHomeRows, zhTWRecordingHomeDelete),
         'recording-editor': zhTWRecordingEditor,
         'recording-editor-constraints': zhTWRecordingEditorConstraints,
         'parameter-help': { ...zhTWParameterHelp, ...zhTWParameterHelpAdvanced },

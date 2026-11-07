@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import en from '@/i18n/locales/en/recording-home.json';
-import zhTW from '@/i18n/locales/zh-TW/recording-home.json';
+import en from '@/i18n/locales/en/recording-home-rows.json';
+import zhTW from '@/i18n/locales/zh-TW/recording-home-rows.json';
 import { RecordingHome } from '@/features/datalink/workbench-v2/recording-home/RecordingHome';
 import { RecordingHomeCollection } from '@/features/datalink/workbench-v2/recording-home/RecordingHomeCollection';
 import { initialCollectionState } from '@/features/datalink/workbench-v2/recording-home/recordingHomeCollections';
 import { recordingHomeGuidance } from '@/features/datalink/workbench-v2/recording-home/recordingHomeGuidance';
 import { recordingHomeResultSummary } from '@/features/datalink/workbench-v2/recording-home/recordingHomeResultSummary';
 import { fixture, group } from './recording-home-guidance-fixtures';
-const actualLabels = vi.hoisted(() => ({ current: null as null | { details: string; detailsFor: string } }));
-vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, options?: { name?: string }) => actualLabels.current && key === 'result.details' ? actualLabels.current.details : actualLabels.current && key === 'result.detailsFor' ? actualLabels.current.detailsFor.replace('{{name}}', options?.name ?? '') : options?.name ? `${key}: ${options.name}` : key }) }));
+const actualLabels = vi.hoisted(() => ({ current: null as null | { stagesFor: string } }));
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, options?: { name?: string }) => actualLabels.current && key === 'rowEvidence.stagesFor' ? actualLabels.current.stagesFor.replace('{{name}}', options?.name ?? '') : options?.name ? `${key}: ${options.name}` : key }) }));
 afterEach(() => { cleanup(); actualLabels.current = null; });
 const longName = '鍋爐室一號溫度與壓力資料記錄'.repeat(10);
 const groups = [{ ...group('G'), name: longName }, { ...group('H'), name: 'Second recording' }];
@@ -35,13 +35,15 @@ describe('actual home semantic and keyboard/focus contracts (no geometry claims)
     expect(within(region).getByRole('table', { name: 'saved' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'previous' })).toBeDisabled();
   });
-  it('keeps full long names and uniquely names each native evidence disclosure', () => {
+  it('keeps full long names and makes each recording’s stage evidence keyboard accessible', () => {
     render(<Host />);
     expect(screen.getByText(longName)).toHaveTextContent(longName);
-    const detail = screen.getByLabelText(`result.detailsFor: ${longName}`);
-    expect(detail.tagName).toBe('SUMMARY'); expect(detail.closest('details')).not.toHaveAttribute('open');
-    fireEvent.click(detail); expect(detail.closest('details')).toHaveAttribute('open');
-    expect(screen.getByLabelText('result.detailsFor: Second recording')).toBeInTheDocument();
+    const stages = screen.getByRole('group', { name: `rowEvidence.stagesFor: ${longName}` });
+    const first = stages.querySelector<HTMLElement>('[data-write-stage]')!;
+    first.focus(); expect(first).toHaveFocus();
+    expect(document.getElementById(first.getAttribute('aria-describedby')!)).toHaveAttribute('role', 'tooltip');
+    expect(screen.getByRole('group', { name: 'rowEvidence.stagesFor: Second recording' })).toBeInTheDocument();
+    expect(stages.closest('tr')?.querySelectorAll('details')).toHaveLength(0);
   });
   it('typing/filtering does not steal focus or submit any navigation and removed return targets safely focus the heading', () => {
     const open = vi.fn(); render(<Host open={open} restoredFocus="record-removed" />);
@@ -77,15 +79,13 @@ it('keeps all enabled native controls in the natural keyboard order without posi
   }
 });
 
-it.each([['en', en], ['zh-TW', zhTW]] as const)('%s disclosure accessible names contain their complete visible label and each record name', (_language, locale) => {
-  actualLabels.current = locale.result;
+it.each([['en', en], ['zh-TW', zhTW]] as const)('%s stage groups have unique accessible recording names', (_language, locale) => {
+  actualLabels.current = locale.rowEvidence;
   render(<Host />);
-  const disclosures = screen.getAllByText(locale.result.details);
-  expect(disclosures).toHaveLength(2);
+  const groupsByName = groups.map(group => within(screen.getByTestId(`home-result-${group.id}`)).getByRole('group'));
   for (const group of groups) {
-    const disclosure = within(screen.getByTestId(`home-result-${group.id}`)).getByText(locale.result.details);
-    expect(disclosure).toHaveAccessibleName(expect.stringContaining(locale.result.details));
-    expect(disclosure).toHaveAccessibleName(expect.stringContaining(group.name));
+    const stages = within(screen.getByTestId(`home-result-${group.id}`)).getByRole('group');
+    expect(stages).toHaveAccessibleName(expect.stringContaining(group.name));
   }
-  expect(disclosures[0].getAttribute('aria-label')).not.toBe(disclosures[1].getAttribute('aria-label'));
+  expect(groupsByName[0].getAttribute('aria-label')).not.toBe(groupsByName[1].getAttribute('aria-label'));
 });

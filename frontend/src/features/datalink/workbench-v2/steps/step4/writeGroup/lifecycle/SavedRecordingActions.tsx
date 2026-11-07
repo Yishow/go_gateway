@@ -33,6 +33,8 @@ export function SavedRecordingActions({ lifecycle, scope, disabled, onAction, ca
 }) {
   const { t } = useTranslation('recording-lifecycle');
   const { t: workbench } = useTranslation('workbench-v2');
+  const { t: deletion } = useTranslation('recording-home');
+  const actionName = (action: WriteGroupLifecycleActionName) => action === 'remove' ? deletion('deleteDialogs.recording.confirm') : t(`action.${action}`);
   const instanceId = useId();
   const ReasonTag = compact ? 'div' : 'p';
   const matching = lifecycleMatches(lifecycle, scope);
@@ -53,7 +55,7 @@ export function SavedRecordingActions({ lifecycle, scope, disabled, onAction, ca
         return <button key={action} type="button" disabled={blocked} aria-describedby={!availability?.allowed ? `saved-action-${instanceId}-${firstReason(action)}` : undefined}
           data-testid={TEST_IDS[action]} onClick={() => onAction({ ...scope, action })}
           className={compact ? 'rounded border border-[var(--gw-control)] bg-[var(--gw-surface)] px-3 py-2 text-sm text-[var(--gw-text)] disabled:bg-[var(--gw-ground)] disabled:text-[var(--gw-muted)] disabled:opacity-100' : 'rounded border border-slate-600 px-3 py-1 text-xs text-slate-200 disabled:opacity-40'}>
-          {t(`action.${action}`)}{availability?.requires_review && <span className="ml-1 text-[10px]">· {t('review_required')}</span>}
+          {actionName(action)}{availability?.requires_review && <span className="ml-1 text-[10px]">· {t('review_required')}</span>}
         </button>;
       })}
     </div>
@@ -63,7 +65,7 @@ export function SavedRecordingActions({ lifecycle, scope, disabled, onAction, ca
       const reason = availability?.reason_code ?? 'lifecycle_unavailable';
       const next = availability?.next_action ?? 'reload';
       if (compact && firstReason(action) !== action) return null;
-      const names = compact ? reasons.filter(row => row.reason === reason && row.next === next).map(row => t(`action.${row.action}`)).join(' / ') : t(`action.${action}`);
+      const names = compact ? reasons.filter(row => row.reason === reason && row.next === next).map(row => actionName(row.action)).join(' / ') : actionName(action);
       return <ReasonTag key={action} id={`saved-action-${instanceId}-${action}`} data-testid={`saved-recording-reason-${action}`} className={compact ? 'text-sm text-[var(--gw-warning-fg)]' : 'text-xs text-amber-300'}>
         {names}: {t(`reason.${REASONS.has(reason) ? reason : 'lifecycle_unavailable'}`)}{' '}
         {t(`next.${NEXT.has(next) ? next : 'review_lifecycle'}`)}

@@ -3,11 +3,14 @@ package api
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 
+	"go-gateway/internal/datalink"
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/mapping"
 	"go-gateway/internal/datalink/point"
@@ -17,6 +20,7 @@ import (
 	"go-gateway/internal/datalink/workspace"
 
 	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/require"
 )
 
 func newStudioV2WorkspaceDeviceRouter() *gin.Engine {
@@ -28,6 +32,20 @@ func newStudioV2WorkspaceDeviceRouter() *gin.Engine {
 		PollingGroup: pollinggroup.NewService(pollinggroup.NewMemoryRepository()),
 		Settings:     settings.NewService(settings.NewMemoryRepository()),
 		Workspace:    workspace.NewService(workspace.NewMemoryRepository()),
+	})
+}
+
+func newStudioV2WorkspaceDeviceSQLRouter(t *testing.T) *gin.Engine {
+	t.Helper()
+	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "workspace.db"))
+	require.NoError(t, err)
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { require.NoError(t, db.Close()) })
+	require.NoError(t, datalink.NewMigrator().Migrate(db))
+	ws := workspace.NewService(workspace.NewSQLRepository(db))
+	return NewRouter(&DatalinkServices{
+		Workspace: ws, Device: device.NewService(device.NewSQLRepository(db), nil),
+		WriteGroups: workspace.NewWriteGroupService(ws, workspace.NewSQLWriteGroupRepository(db)),
 	})
 }
 
@@ -188,7 +206,7 @@ func TestNewRouter_StudioV2WorkspaceDeviceValidationDoesNotOverwriteSavedDevice(
 }
 
 func TestNewRouter_StudioV2WorkspaceDeviceDeleteCascadeRemovesWorkspaceRelation(t *testing.T) {
-	router := newStudioV2WorkspaceDeviceRouter()
+	router := newStudioV2WorkspaceDeviceSQLRouter(t)
 
 	createResp := performJSONRequest(t, router, http.MethodPost, "/api/v1/datalink/studio-v2/workspace/devices", map[string]any{
 		"id":       "dev-A",
@@ -233,4 +251,27 @@ func TestNewRouter_StudioV2WorkspaceDeviceDeleteCascadeRemovesWorkspaceRelation(
 	if ids, ok := data["ordered_device_ids"].([]any); !ok || len(ids) != 0 {
 		t.Fatalf("expected empty workspace order after delete, got %#v", data["ordered_device_ids"])
 	}
+}
+
+func TestNewRouter_StudioV2WorkspaceDeviceDeleteRefusesReferencedRecording(t *testing.T) {
+	f := newWriteGroupRouterFixture(t)
+	groups := workspace.NewWriteGroupService(f.workspace, workspace.NewSQLWriteGroupRepository(f.db))
+	router := NewRouter(&DatalinkServices{Workspace: f.workspace, WriteGroups: groups, Device: device.NewService(device.NewSQLRepository(f.db), nil)})
+	created := performJSONRequest(t, router, http.MethodPost, writeGroupsPath, f.createRequest())
+	require.Equal(t, http.StatusCreated, created.Code, created.Body.String())
+	_, group := groupSaveData(t, decodeJSONBody(t, created))
+	before := lifecycleAPIState(t, f.db)
+	response := performJSONRequest(t, router, http.MethodDelete, "/api/v1/datalink/studio-v2/workspace/devices/device-A", nil)
+	require.Equal(t, http.StatusConflict, response.Code, response.Body.String())
+	body := decodeJSONBody(t, response)
+	errBody := body["error"].(map[string]any)
+	require.Equal(t, "DEVICE_REFERENCED_BY_RECORDINGS", errBody["code"])
+	require.Equal(t, "remove_recordings_first", errBody["action"])
+	details := errBody["details"].(map[string]any)
+	require.EqualValues(t, 1, details["total"])
+	require.Equal(t, []any{map[string]any{"id": group["id"], "name": group["name"]}}, details["recordings"])
+	require.Equal(t, before, lifecycleAPIState(t, f.db))
+	var count int
+	require.NoError(t, f.db.QueryRowContext(t.Context(), `SELECT COUNT(*) FROM devices WHERE id='device-A'`).Scan(&count))
+	require.Equal(t, 1, count)
 }

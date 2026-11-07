@@ -976,199 +976,247 @@ tests:
 ---
 ### Requirement: Persisted device deletion cascade
 
-Deleting a persisted Step 1 device from the v2 workspace SHALL remove that device and its v2-owned related data from the backend.
+Deleting a persisted Step 1 device from the v2 workspace SHALL remove that device and its v2-owned related data from the backend. Before any detach or delete, the backend SHALL check within one transaction whether any non-tombstoned recording has a member or canonical key referencing the device; when one does, it SHALL return 409 `DEVICE_REFERENCED_BY_RECORDINGS` with action `remove_recordings_first`, the total count and up to 20 referencing recording identifiers and names, and SHALL change nothing. Tombstoned recordings that reference only this device SHALL be permanently deleted under the recording deletion contract before the device is deleted; if any of them cannot be deleted the device deletion SHALL fail without change. A tombstoned recording that also references another device SHALL refuse the deletion with `DEVICE_REFERENCED_BY_RECORDINGS`. Reference check, tombstone purge, workspace detach and device and source-rule deletion SHALL commit in one configuration transaction; the Modbus Share membership invalidation SHALL run after that commit through its existing fail-closed path, and when it fails the response SHALL be 500 `DEVICE_DELETED_SHARE_SCOPE_REFRESH_FAILED` stating that the device was deleted, never a plain success. A failure to close the device connection after commit SHALL return 500 `DEVICE_DELETED_CONNECTION_CLOSE_FAILED`. A successful deletion SHALL record a `device_deleted` audit entry containing only the device identifier, name and protocol.
 
 #### Scenario: Delete persisted device
 
-- **GIVEN** a persisted device belongs to the singleton v2 workspace
-- **WHEN** the operator deletes that device from Step 1
+- **GIVEN** a persisted device belongs to the singleton v2 workspace and no non-tombstoned recording references it
+- **WHEN** the operator deletes that device
 - **THEN** the backend removes the device from the workspace
 - **AND** the device no longer appears after a page reload
 
+#### Scenario: Device referenced by recordings
+
+- **GIVEN** recordings `MC (Instantaneous)` and `100.76.76.1(mc)` are drafts with members on device MC
+- **WHEN** a delete request for MC is sent
+- **THEN** the response is 409 `DEVICE_REFERENCED_BY_RECORDINGS` listing both recordings with total 2
+- **AND** the device, its source rules and both recordings are unchanged
+
+#### Scenario: Device referenced only by a tombstone
+
+- **GIVEN** removed recording `Test` is the only recording referencing device D1 and it has no pending delivery
+- **WHEN** a delete request for D1 is sent
+- **THEN** `Test` is permanently deleted, then D1 is deleted, and a `device_deleted` audit entry exists
+
+#### Scenario: Tombstone with pending delivery blocks device deletion
+
+- **GIVEN** removed recording `Test` references only device D1 and still has 2 retrying outbox rows
+- **WHEN** a delete request for D1 is sent
+- **THEN** the response is 409 `WRITE_GROUP_DELETE_BACKLOG` with the categorized counts, and D1, its source rules and `Test` are unchanged
+
+#### Scenario: Share refresh fails after the device is deleted
+
+- **WHEN** the configuration transaction commits but the Modbus Share membership invalidation fails
+- **THEN** the response is 500 `DEVICE_DELETED_SHARE_SCOPE_REFRESH_FAILED`, the device stays deleted and Modbus Share remains fail-closed
+
+
 <!-- @trace
-source: wire-studio-v2-step1-device-autosave
-updated: 2026-05-31
+source: improve-recording-home-status-and-delete
+updated: 2026-11-08
 code:
-  - start.ps1
-  - frontend/src/features/datalink/workbench-v2/state/selectors.ts
-  - internal/datalink/mapping/errors.go
-  - frontend/src/services/studioV2WorkspaceDevices.ts
-  - internal/datalink/device/service_status.go
-  - frontend/src/types/datalink.ts
-  - internal/datalink/dbtarget/service.go
-  - internal/datalink/workspace/service.go
-  - frontend/src/features/datalink/workbench-v2/state/studioV2DatabaseAutosave.ts
-  - frontend/src/features/datalink/workbench-v2/state/types-settings.test-d.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceEditor.tsx
-  - frontend/src/features/datalink/workbench-v2/settings/SettingsPage.tsx
-  - frontend/src/features/datalink/workbench-v2/state/settingsDefaults.ts
-  - frontend/src/pages/datalink/workbench-v2/useStudioV2DatabaseAutosave.ts
-  - internal/api/handlers/studio_v2_runtime_apply.go
-  - gateway.db
-  - frontend/src/pages/datalink/workbench-v2/useStudioV2AutosaveState.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/TransformPreview.tsx
-  - go.mod
-  - internal/api/handlers/point_direct_reader.go
-  - internal/datalink/sourcerule/service.go
-  - task_plan.md
-  - internal/datalink/runtime/status.go
-  - frontend/src/hooks/datalink/useStudioV2Rules.ts
-  - internal/datalink/migrator.go
-  - internal/api/handlers/studio_v2_workspace_mappings_handler.go
-  - frontend/src/features/datalink/workbench-v2/state/studioV2RuleAutosave.ts
-  - frontend/src/i18n/locales/zh-TW/workbench-v2.json
-  - frontend/src/types/studioV2Availability.ts
-  - docs/superpowers/specs/2026-05-30-v2-step3-live-preview-and-target-type-shortcuts-design.md
-  - frontend/src/features/datalink/runtime-dashboard/RuntimeDashboardPage.tsx
-  - frontend/src/i18n/locales/zh-TW/runtime-dashboard.json
+  - internal/datalink/dbtarget/writer_snapshot.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupLifecycleBar.tsx
+  - frontend/studio-v2-diagnostic.cjs
+  - internal/datalink/workspace/write_group_service.go
+  - internal/datalink/runtimeview/contract.go
+  - docs/validation/memory-views-20261106/skill/SKILL.md
+  - frontend/src/services/runtimeLogLegacyProjection.ts
+  - internal/datalink/dbtarget/writer_workers.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeResultFacts.tsx
+  - frontend/src/i18n/locales/zh-TW/recording-home-status.json
+  - internal/datalink/workspace/write_group_permanent_delete_audit.go
+  - docs/testing.md
+  - frontend/src/features/datalink/workbench-v2/recording-home/DeviceDeleteDialog.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/RecordingLifecycleHistory.tsx
+  - internal/datalink/workspace/device_recording_delete.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeStatusSummary.tsx
+  - internal/datalink/workspace/write_group_permanent_delete.go
+  - internal/diagnostics/projection.go
   - internal/api/router.go
-  - frontend/src/hooks/datalink/useSettings.ts
-  - internal/datalink/device/service_point_read.go
-  - internal/datalink/sourcerule/activation_readiness.go
-  - frontend/src/features/datalink/workbench-v2/state/useWorkbenchV2State.ts
-  - frontend/src/services/studioV2Mappings.ts
-  - .air.toml
-  - internal/api/handlers/source_rule_handler.go
-  - frontend/src/features/datalink/workbench-v2/steps/step3/index.ts
-  - go.sum
-  - frontend/src/features/datalink/workbench-v2/state/mappingReducer.ts
-  - frontend/src/hooks/datalink/useStudioV2Mappings.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/Step1Device.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingTable.tsx
-  - frontend/src/features/datalink/workbench-v2/settings/backendMappings.ts
-  - frontend/src/features/datalink/workbench-v2/state/types.ts
-  - internal/api/handlers/point_handler.go
-  - internal/api/handlers/runtime_handler.go
-  - internal/api/handlers/studio_v2_workspace_source_rules_handler.go
-  - frontend/src/services/studioV2WorkspaceDatabase.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ConnectionTestPanel.tsx
-  - frontend/src/pages/datalink/workbench-v2/useStudioV2RuleAutosave.ts
-  - internal/api/handlers/mapping_handler.go
-  - internal/datalink/workspace/service_database.go
-  - frontend/src/features/datalink/workbench-v2/shell/WorkbenchV2Shell.tsx
-  - frontend/src/features/datalink/workbench-v2/state/mappingDefaults.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/Step3Mapping.tsx
-  - start.sh
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSummary.tsx
-  - frontend/src/hooks/datalink/useStudioV2WorkspaceDatabase.ts
-  - frontend/src/features/datalink/workbench-v2/settings/ConnectorRow.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitProgress.tsx
-  - internal/datalink/dbtarget/types.go
-  - frontend/src/hooks/datalink/keys.ts
-  - frontend/src/i18n/locales/en/workbench-v2.json
-  - internal/api/handlers/point_handler_polling.go
-  - internal/api/handlers/studio_v2_workspace_database_handler.go
-  - internal/datalink/device/sql_repo.go
-  - internal/datalink/schema/schema_device_models.go
-  - frontend/src/hooks/datalink/useStudioV2WorkspaceDevices.ts
-  - scripts/start-process-utils.sh
-  - internal/datalink/sourcerule/service_links.go
-  - internal/datalink/workspace/sql_repository.go
-  - frontend/src/features/datalink/workbench-v2/steps/step1/ReadinessStages.tsx
-  - internal/datalink/device/availability.go
-  - internal/api/handlers/studio_v2_workspace_handler.go
-  - frontend/src/hooks/datalink/useStudioV2RuntimeContext.ts
-  - docs/goal.md
-  - frontend/src/features/datalink/workbench-v2/steps/step3/PipelineSteps.tsx
-  - frontend/src/services/studioV2Workspace.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step4/Step4Database.tsx
-  - frontend/src/features/datalink/legacyRoutes.ts
-  - findings.md
-  - internal/datalink/device/errors.go
-  - frontend/src/services/studioV2RuntimeContext.ts
-  - internal/datalink/sourcerule/errors.go
-  - docs/superpowers/plans/2026-05-30-v2-step3-live-preview-and-target-type-shortcuts.md
-  - frontend/src/hooks/datalink/index.ts
-  - internal/datalink/workspace/service_activation.go
-  - progress.md
+  - frontend/src/services/runtimeLogDomainProjection.ts
+  - frontend/src/features/datalink/workbench-v2/recording-home/recording-delete-dialog.css
   - internal/api/handlers/studio_v2_workspace_devices_handler.go
-  - frontend/src/services/studioV2WorkspaceActivation.ts
-  - frontend/src/features/datalink/runtime-dashboard/FocusedDeviceHeader.tsx
-  - frontend/src/types/studioV2Activation.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/useStep3LivePreview.ts
-  - frontend/src/pages/datalink/workbench-v2/DatalinkWorkbenchV2Page.tsx
-  - frontend/src/types/studioV2RuntimeApply.ts
-  - frontend/src/features/datalink/workbench-v2/state/studioV2DeviceAutosave.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/MappingRow.tsx
-  - frontend/src/features/datalink/workbench-v2/state/studioV2MappingAutosave.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/useStep3LiveValues.ts
-  - frontend/src/App.tsx
-  - frontend/src/features/datalink/workbench-v2/steps/step4/CommitSuccessCard.tsx
-  - frontend/src/hooks/datalink/useStudioV2Workspace.ts
-  - frontend/src/pages/datalink/workbench-v2/useStudioV2MappingAutosave.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step1/DeviceTabRail.tsx
-  - internal/api/handlers/studio_v2_workspace_activation_handler.go
-  - internal/datalink/device/service_crud.go
-  - frontend/src/features/datalink/runtime-dashboard/useRuntimeDashboardState.ts
-  - frontend/src/features/datalink/workbench-v2/settings/ConnectorPoolSection.tsx
-  - frontend/src/features/datalink/workbench-v2/shell/SummaryRail.tsx
-  - frontend/src/services/studioV2Rules.ts
-  - frontend/src/features/datalink/workbench-v2/steps/step3/TargetTypeQuickActions.tsx
+  - internal/datalink/modbusshare/service_projection.go
+  - docs/technical/studio-surface-inventory/backend-api-registry.md
+  - frontend/src/i18n/locales/zh-TW/runtime-logs.json
+  - internal/api/router_studio_v2_write_group_routes.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/recordingHomeStatusCounts.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/SavedRecordingActions.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_purge.go
+  - internal/diagnostics/domain_event.go
+  - docs/swagger/swagger.json
+  - docs/swagger/docs.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/recordingHomeLifecycleMatches.ts
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeWriteStages.tsx
+  - internal/api/handlers/typed_errors.go
+  - internal/datalink/device/workspace_delete.go
+  - internal/datalink/groupdelivery/quota.go
+  - frontend/src/services/runtimeRuleEvidenceParser.ts
+  - AGENTS.md
+  - docs/technical/studio-surface-inventory/studio-v2-runtime.md
+  - internal/datalink/workspace/write_group_lifecycle_actions.go
+  - frontend/src/types/runtimeRuleEvidence.ts
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeStatusDistribution.tsx
+  - internal/api/handlers/studio_v2_workspace_write_groups_handler.go
+  - internal/datalink/workspace/write_group_permanent_delete_recording_start.go
+  - frontend/src/i18n/locales/en/recording-home.json
+  - frontend/src/services/studioV2WorkspaceWriteGroups.ts
+  - internal/datalink/workspace/write_group_permanent_delete_shared.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler_delete.go
+  - internal/datalink/audit/types.go
+  - internal/datalink/dbtarget/writer_failure_log.go
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceDevices.ts
+  - frontend/src/services/studioV2WorkspaceDelete.ts
+  - internal/api/handlers/studio_v2_workspace_write_groups_handler_mutate.go
+  - internal/datalink/dbtarget/writer_flush.go
+  - frontend/src/hooks/datalink/useStudioV2WriteGroups.ts
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeRoute.tsx
+  - internal/testutil/legacyrecording/tombstone.go
+  - internal/api/handlers/studio_v2_workspace_write_groups_handler_delete.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/deviceConnectionState.ts
+  - frontend/src/i18n/locales/en/recording-home-status.json
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeRowActions.tsx
+  - frontend/src/i18n/locales/zh-TW/recording-home-delete.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupDeliveryStrip.tsx
+  - frontend/src/i18n/locales/zh-TW/recording-home.json
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHome.tsx
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeDestinationCell.tsx
+  - frontend/src/features/datalink/workbench-v2/recording-home/recordingHomeWriteStageMapping.ts
+  - internal/datalink/dbtarget/writer_group_flush.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/recordingHomeRows.css
+  - frontend/src/services/studioV2WorkspaceDevices.ts
+  - internal/datalink/dbtarget/writer_retry.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeUnconfirmed.tsx
+  - frontend/src/features/runtime-logs/RuntimeLogLegacyEvent.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_operations.go
+  - internal/datalink/workspace/write_group_permanent_delete_storage.go
+  - frontend/src/i18n/config.ts
+  - internal/datalink/workspace/write_group_permanent_delete_scope.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingDeleteDialog.tsx
+  - frontend/src/features/datalink/workbench-v2/recording-home/recordingHomeStatus.css
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeDeviceActions.tsx
+  - frontend/src/features/datalink/workbench-v2/recording-home/useRecordingHomeDeviceStatus.ts
+  - docs/swagger/swagger.yaml
+  - frontend/src/i18n/locales/en/recording-home-rows.json
+  - frontend/src/types/studioV2Delete.ts
+  - frontend/src/types/deviceConnection.ts
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeRecordRow.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_guard.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeDeviceStrip.tsx
+  - frontend/src/i18n/locales/zh-TW/recording-home-rows.json
+  - frontend/src/i18n/locales/zh-TW/runtime-dashboard.json
+  - frontend/src/dev/previewI18n.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/SavedRecordingRemoveDialog.tsx
   - frontend/src/i18n/locales/en/runtime-dashboard.json
-  - frontend/src/hooks/datalink/useStudioV2WorkspaceActivation.ts
-  - internal/datalink/mapping/service_crud.go
-  - internal/datalink/workspace/service_devices.go
-  - scripts/start-log-utils.sh
-  - internal/api/handlers/studio_v2_workspace_database_handler_helpers.go
-  - internal/datalink/db.go
-  - internal/datalink/workspace/memory_repository.go
+  - docs/technical/studio-surface-inventory/changelog.sqlite
+  - docs/validation/memory-views-20261106/skill/references/lessons.md
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingDeleteDialogController.tsx
+  - internal/datalink/grouppipeline/backlog_guard.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeCollection.tsx
+  - frontend/src/i18n/locales/en/recording-home-delete.json
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingDeleteDialogError.tsx
+  - frontend/src/i18n/locales/en/runtime-logs.json
 tests:
-  - internal/datalink/workspace/service_test.go
-  - frontend/tests/unit/workbench-v2/step3-live-values.test.tsx
-  - frontend/tests/unit/workbench-v2/routing.test.tsx
-  - frontend/tests/unit/workbench-v2/device-autosave-page.test.tsx
-  - internal/api/router_logger_test.go
-  - internal/api/handlers/point_handler_poll_contract_test.go
-  - internal/api/router_studio_v2_workspace_mappings_test.go
-  - frontend/tests/unit/workbench-v2/step1.test.tsx
-  - frontend/tests/unit/workbench-v2/step3-target-type-shortcuts.test.tsx
-  - frontend/tests/unit/workbench-v2/reducer-step1.test.ts
-  - frontend/tests/unit/hooks/useStudioV2Workspace.test.tsx
-  - frontend/tests/unit/hooks/useStudioV2Rules.test.ts
-  - frontend/tests/unit/workbench-v2/step3-live-preview.test.tsx
-  - internal/api/router_studio_v2_workspace_test.go
-  - internal/datalink/mapping/service_workspace_scope_test.go
-  - frontend/tests/unit/workbench-v2/settings-connectors.test.tsx
-  - frontend/tests/unit/workbench-v2/workspace-boot.test.tsx
-  - internal/api/handlers/studio_v2_workspace_database_handler_test.go
-  - frontend/tests/unit/workbench-v2/settings.test.tsx
-  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-state.test.tsx
-  - internal/datalink/device/availability_test.go
-  - internal/api/router_studio_v2_workspace_activation_test.go
-  - internal/api/router_studio_v2_workspace_source_rules_test.go
-  - internal/datalink/dbtarget/service_mysql_test.go
-  - internal/api/handlers/studio_v2_workspace_activation_handler_test.go
+  - internal/api/router_studio_v2_write_group_lifecycle_test.go
+  - internal/datalink/workspace/write_group_permanent_delete_delivery_fixture_test.go
+  - internal/api/router_studio_v2_successor_first_start_fixture_test.go
+  - frontend/tests/unit/runtime-logs/legacy-event-fixtures.ts
+  - frontend/tests/unit/workbench-v2/saved-recording-actions.test.tsx
+  - internal/api/handlers/studio_v2_workspace_write_groups_handler_delete_test.go
+  - frontend/tests/unit/workbench-v2/groupDeliveryStrip.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-accessibility.test.tsx
+  - internal/api/router_studio_v2_locator_entry_test.go
+  - frontend/tests/unit/dev/recording-style-bootstrap.test.tsx
+  - internal/datalink/workspace/recording_start_disabled_test.go
+  - internal/datalink/dbtarget/writer_failure_revision_test.go
+  - cmd/test_ui/group_pipeline_outage_delete_test.go
+  - frontend/tests/unit/workbench-v2/recording-editor-range-mc-prepare.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-memory-scope.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-guided-saved-card.test.tsx
+  - internal/datalink/workspace/write_group_lifecycle_test.go
+  - internal/datalink/workspace/write_group_mixed_safety_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-route.test.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_storage_test.go
+  - frontend/tests/unit/workbench-v2/device-connection-state.test.ts
+  - frontend/tests/unit/workbench-v2/recording-home-status-counts.test.ts
+  - frontend/tests/unit/workbench-v2/recording-home-shell.test.tsx
+  - frontend/tests/unit/workbench-v2/studio-locator-group-focus.test.tsx
+  - cmd/test_ui/gateway_logging.go
+  - internal/api/router_studio_v2_write_group_boundaries_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-source-modal.test.tsx
+  - internal/datalink/grouppipeline/backlog_guard_lifecycle_test.go
+  - internal/datalink/workspace/write_group_circuit_profile_rules_test.go
+  - frontend/tests/unit/workbench-v2/recording-delete-dialog.test.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_test.go
+  - internal/api/router_studio_v2_write_group_action_errors_test.go
+  - frontend/tests/unit/runtime-logs/runtimeLogLegacyProjection.test.ts
+  - cmd/test_ui/delivery_events_unavailable_test.go
+  - frontend/tests/e2e/fixtures/recording-lifecycle-api.ts
+  - frontend/tests/unit/runtime-logs/RuntimeLogCompatibility.test.tsx
+  - internal/datalink/dbtarget/writer_failure_log_test.go
+  - internal/api/router_runtime_rule_evidence_test.go
+  - internal/api/router_studio_v2_write_group_stop_remove_safety_test.go
+  - internal/datalink/groupdelivery/quota_reclaim_receipts_test.go
+  - internal/datalink/workspace/write_group_basic_managed_test.go
+  - frontend/tests/unit/workbench-v2/recording-modal-return.test.tsx
+  - frontend/tests/unit/services/studioV2WorkspaceWriteGroups.test.ts
+  - frontend/tests/unit/workbench-v2/recording-home-source-switching.test.tsx
+  - cmd/test_ui/group_pipeline_outage_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-row-actions.test.tsx
+  - frontend/tests/unit/runtime-dashboard/runtime-legacy-delivery-safety.test.tsx
+  - frontend/tests/unit/workbench-v2/device-delete-cache.test.tsx
+  - internal/datalink/workspace/write_group_lifecycle_error_preservation_test.go
+  - internal/datalink/workspace/write_group_reclaim_delete_test.go
+  - cmd/test_ui/group_pipeline_lifecycle_crash_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-visual-status.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-device-status.test.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_legacy_test.go
+  - frontend/tests/unit/services/studioV2DeleteResponses.test.ts
+  - internal/api/router_studio_v2_recording_start_delete_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-memory-view.test.tsx
+  - frontend/tests/unit/dev/recording-style-preview.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-acquisition-anomalies.test.tsx
+  - internal/datalink/workspace/write_group_successor_replay_test.go
+  - internal/datalink/workspace/write_group_lifecycle_actions_fixture_test.go
+  - internal/datalink/workspace/write_group_lifecycle_actions_test.go
+  - frontend/tests/e2e/recording-home-status-layout.spec.ts
+  - frontend/tests/e2e/recording-home-tombstone-delete.spec.ts
+  - frontend/tests/unit/workbench-v2/recording-home-inline-evidence.test.tsx
+  - frontend/tests/unit/workbench-v2/recordingLifecycleBrowserFixture.test.ts
+  - internal/datalink/workspace/write_group_service_test.go
+  - internal/datalink/workspace/write_group_tombstone_remove_actions_test.go
+  - cmd/test_ui/service_wiring.go
+  - cmd/test_ui/group_pipeline_legacy_takeover_test.go
+  - frontend/tests/unit/runtime-logs/runtimeLogDomainProjection.test.ts
+  - frontend/tests/unit/workbench-v2/recording-home-delete-integration.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-device-actions.ts
+  - frontend/tests/unit/workbench-v2/recording-home-mc-resave.test.tsx
+  - frontend/tests/unit/workbench-v2/writeGroupLifecycle.test.tsx
+  - internal/datalink/grouppipeline/backlog_guard_delete_count_test.go
+  - cmd/test_ui/group_pipeline_lifecycle_test.go
   - internal/api/router_studio_v2_workspace_devices_test.go
-  - internal/datalink/device/service_crud_test.go
-  - frontend/tests/unit/hooks/useStudioV2Mappings.test.ts
-  - internal/api/handlers/studio_v2_workspace_mappings_handler_test.go
-  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-route.test.tsx
-  - cmd/test_ui/main.go
-  - frontend/tests/unit/workbench-v2/step4-commit.test.tsx
-  - frontend/tests/unit/workbench-v2/rule-autosave-page.test.tsx
-  - frontend/tests/unit/hooks/useStudioV2WorkspaceDatabase.test.ts
-  - internal/datalink/sourcerule/service_workspace_scope_test.go
-  - frontend/tests/unit/workbench-v2/step4-database.test.tsx
-  - internal/api/handlers/device_handler_extended_test.go
-  - frontend/tests/unit/workbench-v2/selectors.test.tsx
-  - internal/api/router_studio_v2_runtime_context_test.go
-  - internal/api/handlers/runtime_handler_test.go
-  - frontend/tests/unit/runtime-dashboard/runtime-dashboard-page.test.tsx
-  - internal/datalink/workspace/service_activation_test.go
-  - frontend/tests/unit/workbench-v2/settings-backend.test.tsx
-  - internal/api/handlers/studio_v2_workspace_devices_handler_test.go
-  - internal/api/handlers/studio_v2_workspace_handler_test.go
-  - cmd/test_ui/static/index.html
-  - frontend/tests/unit/workbench-v2/shell.test.tsx
-  - internal/api/handlers/dbtarget_handler_connectors_test.go
-  - frontend/tests/unit/workbench-v2/database-autosave-page.test.tsx
-  - frontend/tests/unit/workbench-v2/mapping-autosave-page.test.tsx
-  - internal/api/handlers/studio_v2_workspace_source_rules_handler_test.go
-  - internal/api/router_runtime_test.go
-  - frontend/tests/unit/workbench-v2/step3-mapping.test.tsx
-  - frontend/tests/unit/workbench-v2/settings-backend-mappings.test.ts
-  - frontend/tests/unit/hooks/useStudioV2WorkspaceDevices.test.ts
-  - internal/datalink/workspace/service_device_order_test.go
+  - internal/datalink/grouppipeline/applied_configuration_read_test.go
+  - internal/datalink/workspace/write_group_permanent_delete_recording_start_test.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler_cascade_test.go
+  - internal/api/router_studio_v2_recording_delete_contract_test.go
+  - frontend/tests/unit/workbench-v2/device-delete-dialog.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-management.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-mc-locator.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-source-entry.test.tsx
+  - frontend/tests/e2e/recording-database-unavailable.spec.ts
+  - internal/datalink/workspace/write_group_successor_guard_test.go
+  - internal/datalink/dbtarget/writer_failure_log_outcome_test.go
+  - internal/api/router_studio_v2_write_group_lifecycle_history_test.go
+  - internal/datalink/grouppipeline/stop_remove_intake_fence_test.go
+  - cmd/test_ui/gateway_logging_database_test.go
+  - frontend/tests/e2e/recording-home-narrow-records.spec.ts
+  - frontend/tests/unit/workbench-v2/recording-home-tombstone-delete.test.tsx
+  - internal/api/handlers/studio_v2_workspace_devices_handler_recordings_test.go
+  - internal/datalink/workspace/write_group_lifecycle_error_test.go
+  - internal/datalink/workspace/write_group_permanent_delete_schema_test.go
+  - internal/datalink/workspace/write_group_permanent_delete_shared_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-new-range-strict-ack.test.tsx
 -->
 
 ---

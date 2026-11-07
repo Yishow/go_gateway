@@ -2,11 +2,12 @@ import { useTranslation } from 'react-i18next';
 import type { WriteGroupLifecycleHistory } from '@/types/studioV2WriteGroupLifecycle';
 
 /** Counts retain their source units; samples and delivery rows must never be added. */
-export function RecordingLifecycleHistory({ history }: { history?: WriteGroupLifecycleHistory }) {
+export function RecordingLifecycleHistory({ history, deleting = false }: { history?: WriteGroupLifecycleHistory; deleting?: boolean }) {
   const { t } = useTranslation('recording-lifecycle');
+  const { t: deletion } = useTranslation('recording-home');
   if (!history) return <p role="status">{t('history.unavailable')}</p>;
   return <div className="space-y-2" data-testid="recording-lifecycle-history">
-    <p>{t('history.kept')}</p>
+    <p>{deleting ? deletion('deleteDialogs.recording.history') : t('history.kept')}</p>
     {history.generations.map((generation) => <section key={generation.group_id} className="space-y-1 rounded border border-slate-700 p-2">
       <h4>{t('history.generation', { number: generation.generation ?? '—' })} · {generation.group_id}</h4>
       <p>{t('history.saved_destination')}: {generation.saved_destination.connector_id} · {generation.saved_destination.connector_revision}</p>

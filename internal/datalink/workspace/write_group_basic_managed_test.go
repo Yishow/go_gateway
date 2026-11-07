@@ -265,13 +265,7 @@ func TestWriteGroupServiceEnsureBasicManagedKeepsTombstone(t *testing.T) {
 	created, err := service.EnsureBasicManaged(ctx, fixture.deviceID, mutation)
 	require.NoError(t, err)
 
-	workspace, err := workspaceSvc.GetOrCreate(ctx)
-	require.NoError(t, err)
-	deleted, err := service.Delete(ctx, created.Group.ID, WriteGroupMutation{
-		WorkspaceID: fixture.workspaceID, ExpectedWorkspaceRevision: workspace.DatabaseSetupRevision,
-		ExpectedGroupRevision: created.Group.Revision, ExpectedConnectorRevision: "connector-revision-1",
-	})
-	require.NoError(t, err)
+	deleted := seedLegacyRecordingTombstone(t, db, service, created.Group.ID)
 	require.Equal(t, WriteGroupStatusDeleted, deleted.Group.Status)
 
 	_, err = service.EnsureBasicManaged(ctx, fixture.deviceID, mutation)

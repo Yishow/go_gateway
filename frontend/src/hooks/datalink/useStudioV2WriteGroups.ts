@@ -10,6 +10,8 @@ import type {
   WriteGroupSchemaPreviewRequest,
 } from '../../types/studioV2WriteGroup';
 import { studioV2WorkspaceKeys } from './keys';
+import type { WriteGroupDeleteReceipt } from '../../types/studioV2Delete';
+import type { WriteGroupMutationResponse } from '../../types/studioV2WriteGroup';
 
 export function useWriteGroupsQuery(enabled: boolean, scope?: StudioV2RecordingReadScope, options: { refetchOnMount?: 'always' } = {}) {
   return useQuery({
@@ -129,7 +131,7 @@ export function useUpdateWriteGroupMutation() {
 export function useWriteGroupLifecycleMutation(action: 'apply' | 'disable' | 'remove') {
   const invalidate = useInvalidateWriteGroups();
   return useMutation({
-    mutationFn: (variables: { id: string; request: WriteGroupDeleteRequest }) =>
+    mutationFn: (variables: { id: string; request: WriteGroupDeleteRequest }): Promise<WriteGroupMutationResponse | WriteGroupDeleteReceipt> =>
       studioV2WorkspaceWriteGroupsAPI[action](variables.id, variables.request),
     retry: false,
     onSettled: invalidate,

@@ -19,9 +19,9 @@ function Host({ initial = initialCollectionState(), observedIds = [], openDevice
     onChange={setState} onOpen={vi.fn()} onOpenDevice={openDevice} onRemember={vi.fn()} onRecheck={vi.fn()} />;
 }
 describe('compact home management', () => {
-  it('300 records render only25/50 rows, devices summary only4, and same-page device management stays bounded', () => {
+  it('300 records render only 25/50 rows and same-page device management stays bounded', () => {
     render(<Host />); expect(within(screen.getByTestId('home-management-table')).getAllByRole('row')).toHaveLength(26);
-    expect(within(screen.getByTestId('home-device-summary')).getAllByRole('listitem')).toHaveLength(4);
+    expect(screen.queryByTestId('home-device-summary')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('pageSize'), { target: { value: '50' } });
     expect(within(screen.getByTestId('home-management-table')).getAllByRole('row')).toHaveLength(51);
     fireEvent.click(screen.getByText('next')); expect(screen.getByTestId('home-page-status')).toHaveTextContent('2/6 (300)');
@@ -118,13 +118,12 @@ describe('compact home management', () => {
 });
 
 
-describe('demo device summary stays inside the simple home', () => {
-  it('places saved recordings before the device summary and uses an explicit points action', () => {
+describe('device actions stay inside the simple home', () => {
+  it('uses an explicit points action in the device list', () => {
     const openDevice = vi.fn(); render(<Host openDevice={openDevice} />);
-    const table = screen.getByTestId('home-management-table');
-    const summary = screen.getByTestId('home-device-summary');
-    expect(table.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const row = within(summary).getAllByRole('listitem')[0];
+    expect(screen.queryByTestId('home-device-summary')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
+    const row = within(screen.getByTestId('home-management-table')).getAllByRole('row')[1];
     expect(within(row).queryByRole('button', { name: 'Device 0' })).not.toBeInTheDocument();
     expect(within(row).getByText('Device 0').tagName).toBe('STRONG');
     fireEvent.click(within(row).getByRole('button', { name: 'devicePoints' }));
@@ -154,13 +153,14 @@ it('separates saved sources, destination and unknown writing facts without inven
   expect(cells[4]).not.toHaveTextContent(/healthy|rows\/s|0 faults/i);
 });
 
-it('keeps recording identity plain and exposes exactly one open action per row', () => {
+it('keeps recording identity plain, with open, copy and row actions', () => {
  render(<Host />); const row = within(screen.getByTestId('home-management-table')).getAllByRole('row')[1];
  expect(within(row).getByText('Recording 000').tagName).not.toBe('BUTTON');
  expect(within(row).queryByRole('button', { name: 'Recording 000' })).not.toBeInTheDocument();
- expect(within(row).getAllByRole('button')).toHaveLength(1);
+ expect(within(row).getAllByRole('button')).toHaveLength(3);
  expect(within(row).getByRole('button', { name: 'openRecord' })).toHaveAttribute('data-home-focus', 'record-G000');
- expect(within(row).getByText('destinationIdentity').closest('details')).toBeInTheDocument();
+ expect(row.querySelectorAll('details')).toHaveLength(0);
+ expect(within(row).getByRole('button', { name: 'rowEvidence.copyTable' })).toBeInTheDocument();
 });
 
 it('keeps clear and observed controls together without dropping unknown source state', () => {

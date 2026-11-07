@@ -16,6 +16,7 @@ import (
 	"go-gateway/internal/datalink/grouppipeline"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
+	"go-gateway/internal/testutil/legacyrecording"
 
 	"github.com/stretchr/testify/require"
 )
@@ -206,7 +207,32 @@ func runProductionLifecycleCrashChild(t *testing.T) {
 	case "disable":
 		_, err = env.services.writeGroups.Disable(t.Context(), id, mutation)
 	case "delete":
+		before, e := env.services.writeGroups.Get(t.Context(), id)
+		require.NoError(t, e)
+		beforeRows := recordingDeleteState(t, env, id)
 		_, err = env.services.writeGroups.Delete(t.Context(), id, mutation)
+		var refusal *workspace.WriteGroupDeleteError
+		require.ErrorAs(t, err, &refusal)
+		require.Equal(t, "WRITE_GROUP_DELETE_ACTIVE", refusal.Code)
+		after, e := env.services.writeGroups.Get(t.Context(), id)
+		require.NoError(t, e)
+		require.Equal(t, before, after)
+		require.Equal(t, beforeRows, recordingDeleteState(t, env, id))
+		require.Equal(t, 2, lifecycleJournalCount(t, env, live.Group.AppliedRevision, true))
+		_, err = env.services.writeGroups.Disable(t.Context(), id, mutation)
+		require.NoError(t, err)
+		before, e = env.services.writeGroups.Get(t.Context(), id)
+		require.NoError(t, e)
+		beforeRows = recordingDeleteState(t, env, id)
+		_, err = env.services.writeGroups.Delete(t.Context(), id, lifecycleMutation(t, env, id))
+		require.ErrorAs(t, err, &refusal)
+		require.Equal(t, "WRITE_GROUP_DELETE_BACKLOG", refusal.Code)
+		after, e = env.services.writeGroups.Get(t.Context(), id)
+		require.NoError(t, e)
+		require.Equal(t, before, after)
+		require.Equal(t, beforeRows, recordingDeleteState(t, env, id))
+		require.Equal(t, 2, lifecycleJournalCount(t, env, live.Group.AppliedRevision, true))
+		err = legacyrecording.Tombstone(t.Context(), db, id)
 	case "replace":
 		draft := live.Group
 		draft.RowPolicy.IntervalSeconds = 20

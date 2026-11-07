@@ -1,0 +1,29 @@
+{
+  "deviceStatus": {
+    "summary": "首頁狀態摘要",
+    "devices": "設備",
+    "recordings": "記錄",
+    "runtimeWrites": "runtime 累計寫入",
+    "writeSuccess": "成功",
+    "writeError": "錯誤",
+    "outdated": "狀態可能過期，請重新整理或稍後再試。",
+    "strip": "設備連線狀態",
+    "column": "連線狀態",
+    "attention_one": "{{count}} 筆需要處理",
+    "attention_other": "{{count}} 筆需要處理",
+    "lastUpdated": "最後更新 {{time}}",
+    "freshnessHelp": "關於本次觀測",
+    "resumeDraft": "繼續編輯草稿：{{name}}",
+    "resume": "繼續編輯",
+    "states": { "collecting": "採集中", "degraded": "部分異常", "disconnected": "中斷", "idle": "未採集", "unavailable": "狀態無法取得" },
+    "points": "{{healthy}}/{{total}} 點健康",
+    "pointsUnknown": "點位狀態無法取得",
+    "readUnknown": "讀值時間無法取得",
+    "secondsAgo_one": "{{count}} 秒前",
+    "secondsAgo_other": "{{count}} 秒前",
+    "minutesAgo_one": "{{count}} 分鐘前",
+    "minutesAgo_other": "{{count}} 分鐘前",
+    "hoursAgo_one": "{{count}} 小時前",
+    "hoursAgo_other": "{{count}} 小時前"
+  }
+}

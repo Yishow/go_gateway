@@ -1,5 +1,6 @@
 import { recordingHomeSourcesAPI } from '@/services/recordingHomeSources';
 import { homeSources } from './recording-home-source-fixtures';
+import { homeDeviceAction } from './recording-home-device-actions';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -73,7 +74,7 @@ it('saves an MC range twice only with proof scoped to the acknowledged revision'
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } }); clients.push(client);
   render(<QueryClientProvider client={client}><DatalinkWorkbenchV2Page presentation="recordings" locatorIntent={{ kind: 'absent' }}
     presentationLocation={{ search: '?view=recordings', hash: '#home' }} navigateTo={vi.fn()} /></QueryClientProvider>);
-  fireEvent.click(await screen.findByTestId('home-device-points-D'));
+  fireEvent.click(await homeDeviceAction());
   const dialog = await screen.findByRole('dialog');
   const save = () => within(dialog).getByTestId('home-range-save');
   fireEvent.change(await within(dialog).findByTestId('rule-prefix-input'), { target: { value: 'FIRST_' } });

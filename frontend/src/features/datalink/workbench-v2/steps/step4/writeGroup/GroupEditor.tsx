@@ -464,7 +464,7 @@ const GroupEditorContent: React.FC<GroupEditorContentProps> = ({
             locatorScope={locatorScope} locatorGuard={locatorGuard} confirmStop={presentation === 'simple'}
             group={group} workspaceId={workspaceId} workspaceRevision={workspaceRevision}
             canApply={canApply} applyBlockedReason={applyBlocked} readonly={operatorReadonly || readUnavailable} lifecycleHost={lifecycleHost}
-            onChanged={onSaved} onConflict={() => setConflict(true)} onReviewScopedStart={onReviewScopedStart}
+            onChanged={onSaved} onDeleted={onClose} onConflict={() => setConflict(true)} onReviewScopedStart={onReviewScopedStart}
           />
           <GroupTestWritePanel compact={compactWorkflow}
             locatorScope={locatorScope}

@@ -1,6 +1,7 @@
 import { configReadContext, configReadKey } from '@/hooks/datalink/recordingConfigRefresh';
 import { recordingHomeSourcesAPI } from '@/services/recordingHomeSources';
 import { homeSources } from './recording-home-source-fixtures';
+import { homeDeviceAction } from './recording-home-device-actions';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -57,7 +58,7 @@ function mount() {
   return { ...view, navigate, client };
 }
 async function openRange() {
-  fireEvent.click(await screen.findByTestId('home-device-points-D'));
+  fireEvent.click(await homeDeviceAction());
   return screen.findByRole('dialog');
 }
 async function editRange() {
@@ -157,15 +158,14 @@ describe('Home uses the original scoped source owner inside the demo modal', () 
     expect(screen.getByTestId('home-range-save')).toBeDisabled(); expect(studioV2RulesAPI.update).toHaveBeenCalledOnce(); noOtherWrites();
   });
 });
-
 describe('modal exact identity and original completion boundaries', () => {
   it('uses the Home guidance points action without an advanced route', async () => {
-    const { navigate } = mount(); await screen.findByTestId('home-device-points-D');
-    fireEvent.click(within(screen.getByTestId('recording-home-guidance')).getByRole('button', { name: 'Open setup' }));
+    const { navigate } = mount(); await screen.findByTestId('device-status-D');
+    fireEvent.click(within(screen.getByTestId('recording-home')).getByRole('button', { name: 'Open setup' }));
     await waitFor(() => expect(screen.getByRole('dialog')).toHaveTextContent('Device D')); expect(navigate).not.toHaveBeenCalled(); noOtherWrites();
   });
   it('never exposes foreign range labels and ignores a closed old list after reopening the same device', async () => {
-    mount(); await screen.findByTestId('home-device-points-D');
+    mount(); await screen.findByTestId('device-status-D');
     let resolve!: (value: ReturnType<typeof nativeRule>[]) => void;
     vi.mocked(studioV2RulesAPI.list).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
     await openRange(); await waitFor(() => expect(resolve).toBeTypeOf('function'));
@@ -205,7 +205,7 @@ describe('modal exact identity and original completion boundaries', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(studioV2RulesAPI.update).not.toHaveBeenCalled(); noOtherWrites();
   });
   it('starts an existing-device connection buffer without changing or duplicating the saved device', async () => {
-    mount(); await screen.findByTestId('home-device-points-D'); fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
+    mount(); await screen.findByTestId('device-status-D'); fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
     fireEvent.click(within(screen.getByTestId('home-management-table')).getByRole('button', { name: 'Connection' }));
     const dialog = await screen.findByRole('dialog'); const name = await within(dialog).findByTestId('recording-source-name');
     expect(name).toHaveValue('Device D'); expect(within(dialog).getByLabelText('Protocol', { selector: 'select' })).toBeDisabled();
@@ -223,7 +223,7 @@ describe('modal exact identity and original completion boundaries', () => {
       vi.mocked(recordingHomeSourcesAPI.read).mockImplementation(() => new Promise(resolve => { resolveSummary = resolve; }));
       return saved;
     });
-    mount(); await screen.findByTestId('home-device-points-D'); fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
+    mount(); await screen.findByTestId('device-status-D'); fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
     fireEvent.click(within(screen.getByTestId('home-management-table')).getByRole('button', { name: 'Connection' }));
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(await within(dialog).findByTestId('recording-source-name'), { target: { value: 'Saved device name' } });
@@ -290,7 +290,7 @@ describe('modal exact identity and original completion boundaries', () => {
   });
 
   it('keeps Save disabled while the original connection prepare is unresolved', async () => {
-    mount(); await screen.findByTestId('home-device-points-D');
+    mount(); await screen.findByTestId('device-status-D');
     let waiting = false;
     vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockImplementationOnce(() => { waiting = true; return new Promise(() => undefined); });
     fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
@@ -305,7 +305,7 @@ describe('modal exact identity and original completion boundaries', () => {
 
 describe('existing device modal has one cancel and an acknowledged save return', () => {
   async function openConnection() {
-    mount(); await screen.findByTestId('home-device-points-D');
+    mount(); await screen.findByTestId('device-status-D');
     fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
     fireEvent.click(within(screen.getByTestId('home-management-table')).getByRole('button', { name: 'Connection' }));
     const dialog = await screen.findByRole('dialog');

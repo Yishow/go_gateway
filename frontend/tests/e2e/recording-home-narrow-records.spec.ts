@@ -19,7 +19,7 @@ const WS = groups[0].workspace_id;
 // Full parser-valid lifecycle DTO from the home snapshot fixture; an incomplete one shows "設定生命週期未能讀取".
 const lifecycle = (value: (typeof groups)[number]) => snapshotLifecycle({ workspace: { id: WS }, revision: 'W2' } as Parameters<typeof snapshotLifecycle>[0], value);
 
-async function mockHome(page: Page) {
+async function mockHome(page: Page, allowDelete = false) {
   const writes: string[] = [], unknown: string[] = [];
   await page.route('**/api/**', async route => {
     const request = route.request(), url = new URL(request.url()), path = url.pathname.replace('/api/v1/datalink', '');
@@ -32,12 +32,23 @@ async function mockHome(page: Page) {
     else if (path === '/studio-v2/recording-home/sources') data = { workspace_id: WS, state: 'available', source_digest: 'a'.repeat(64),
       devices: DEVICES.map((d, index) => ({ ...d, protocol: 'modbus_tcp', availability: index ? 'unknown' : 'available' })), candidates: [], excluded: [] };
     else if (path === '/studio-v2/workspace/database-operations/test-writes') data = { workspace_id: WS, complete: true, operations: [] };
+    else if (path === '/runtime/status' && !url.searchParams.has('device_id')) data = {
+      running: true, uptime_seconds: 30, metrics: { write_success_total: 10, write_error_total: 1 },
+      snapshot_state: { state: 'ready', empty: false, degraded: false, unavailable: false, stale: false },
+      collectors: DEVICES.map((device, index) => ({ device_id: device.id, device_name: device.name, protocol: 'modbus_tcp',
+        status: index ? 'idle' : 'running', availability_status: 'available', running: !index,
+        points_total: index ? 0 : 4, points_healthy: index ? 0 : 4, points_stale: 0, points_error: 0,
+        last_read_at: index ? null : new Date().toISOString(), last_error: null, breaker_state: 'closed', effective_interval_ms: 1000 })),
+    };
     // Same shapes as recording-home-snapshot-api.ts: no active anomalies, runtime evidence explicitly unavailable.
     else if (path === '/acquisition-anomalies/summary') data = { items: DEVICES.map(d => ({ device_id: d.id, active_count: 0 })), total_active: 0 };
     else if (path === '/studio-v2/workspace/runtime-context' && DEVICES.some(d => d.id === url.searchParams.get('device_id'))) data = { workspace_id: WS,
       devices: [], default_device_id: null, setup: null, rule_evidence: { contract_version: 1, workspace_id: WS, workspace_revision: 'W2',
         device_id: url.searchParams.get('device_id'), observed_at: null, freshness: 'unavailable', source: null, groups: [], locator: null } };
-    else if (found && match[2] === 'lifecycle') data = lifecycle(found);
+    else if (found && match[2] === 'lifecycle') {
+      const facts = lifecycle(found);
+      data = allowDelete ? { ...facts, actions: facts.actions.map(action => action.action === 'remove' ? { ...action, allowed: true, reason_code: '', next_action: '' } : action) } : facts;
+    }
     else if (found) data = delivery(found);
     else { unknown.push(path); return route.abort(); }
     return route.fulfill({ json: { success: true, data } });
@@ -45,9 +56,9 @@ async function mockHome(page: Page) {
   return { writes, unknown };
 }
 
-async function openHome(page: Page, width: number, height: number) {
+async function openHome(page: Page, width: number, height: number, allowDelete = false) {
   await page.setViewportSize({ width, height });
-  const ledger = await mockHome(page);
+  const ledger = await mockHome(page, allowDelete);
   await page.goto('/tests/e2e/fixtures/recording-home-source-host.html?home&light');
   const table = page.getByTestId('home-management-table');
   // A failed home read must fail here, not hide behind a partially rendered table.
@@ -61,7 +72,7 @@ async function openHome(page: Page, width: number, height: number) {
   return { ledger, table };
 }
 
-const NARROW = [{ width: 390, height: 844 }, { width: 768, height: 1024 }, { width: 820, height: 1180 }];
+const NARROW = [{ width: 390, height: 844 }, { width: 768, height: 1024 }, { width: 820, height: 1180 }, { width: 1024, height: 768 }];
 for (const viewport of NARROW) {
   test(`every recording's facts and its open action are reachable without sideways scrolling at ${viewport.width}px`, async ({ page }, info) => {
     const { ledger, table } = await openHome(page, viewport.width, viewport.height);
@@ -102,7 +113,7 @@ for (const viewport of NARROW) {
     await page.getByRole('navigation', { name: '管理記錄或設備' }).getByRole('button', { name: '設備' }).click();
     await expect(table).toHaveAttribute('data-mode', 'devices');
     await expect(table.getByRole('row')).toHaveCount(DEVICES.length + 1);
-    await expect(table.getByRole('columnheader')).toHaveCount(4);
+    await expect(table.getByRole('columnheader')).toHaveCount(5);
     const panel = page.getByTestId('home-collection-scroll');
     const overflow = await panel.evaluate(node => ({ panel: node.scrollWidth - node.clientWidth, page: document.documentElement.scrollWidth - window.innerWidth }));
     expect(overflow.panel, 'devices panel scrolls sideways').toBeLessThanOrEqual(1);
@@ -110,8 +121,8 @@ for (const viewport of NARROW) {
     const frame = (await panel.boundingBox())!;
     for (const device of DEVICES) {
       const row = table.getByRole('row').filter({ hasText: device.name });
-      await expect(row.getByRole('cell')).toHaveCount(4);
-      const parts = [row.getByText(device.name), row.locator('[data-protocol]'), row.locator('[data-availability-badge]'),
+      await expect(row.getByRole('cell')).toHaveCount(5);
+      const parts = [row.getByText(device.name), row.locator('[data-protocol]'), row.locator('[data-availability-badge]'), row.locator('[data-connection-state]'),
         row.getByRole('button', { name: '連線設定' }), row.getByRole('button', { name: '讀取點位' }), row.getByTestId(`home-device-anomalies-${device.id}`)];
       for (const part of parts) {
         await expect(part).toBeVisible();
@@ -151,9 +162,46 @@ test('desktop keeps the six-column table, search, filters, paging and keyboard e
   await page.keyboard.press('Tab');
   await expect(open).toBeFocused();
   await page.getByRole('navigation', { name: '管理記錄或設備' }).getByRole('button', { name: '設備' }).click();
-  await expect(table.getByRole('columnheader')).toHaveCount(4);
+  await expect(table.getByRole('columnheader')).toHaveCount(5);
   expect(await panel.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
   await page.screenshot({ path: info.outputPath('home-devices-1440.png'), fullPage: true });
   expect(ledger.writes).toEqual([]);
   expect(ledger.unknown).toEqual([]);
 });
+
+for (const width of [390, 1440]) {
+  test(`device strip delete action is visible and opens its confirmation at ${width}px`, async ({ page }, info) => {
+    const { ledger } = await openHome(page, width, width === 390 ? 844 : 900);
+    const strip = page.getByRole('region', { name: '設備連線狀態' });
+    const actions = strip.getByRole('button', { name: 'Boiler line PLC 的設備操作' });
+    const stripBox = (await strip.boundingBox())!, actionBox = (await actions.boundingBox())!;
+    expect(actionBox.y + actionBox.height, 'device action is clipped by the strip').toBeLessThanOrEqual(stripBox.y + stripBox.height);
+    await actions.click();
+    const deleteAction = strip.getByRole('menuitem', { name: '刪除設備' });
+    await expect(deleteAction).toBeVisible();
+    await deleteAction.click();
+    const dialog = page.getByRole('alertdialog');
+    await expect(dialog).toContainText('請先刪除以下引用此設備的記錄');
+    await expect(dialog.getByRole('button', { name: '刪除設備' })).toBeDisabled();
+    await page.screenshot({ path: info.outputPath(`device-delete-${width}.png`) });
+    expect(ledger.writes).toEqual([]); expect(ledger.unknown).toEqual([]);
+  });
+}
+
+for (const width of [390, 1440]) {
+  test(`recording delete shows impact and explicit acknowledgement at ${width}px`, async ({ page }, info) => {
+    const { ledger, table } = await openHome(page, width, width === 390 ? 844 : 900, true);
+    const row = table.getByRole('row').filter({ hasText: groups[1].name });
+    await row.getByRole('button', { name: `「${groups[1].name}」的操作` }).click();
+    await row.getByRole('menuitem', { name: '刪除記錄' }).click();
+    const dialog = page.getByRole('alertdialog');
+    await expect(dialog).toContainText('此動作無法復原');
+    await expect(dialog).toContainText('外部資料庫的資料表與已寫入資料會保留');
+    await expect(dialog.getByRole('button', { name: '刪除記錄' })).toBeDisabled();
+    await page.screenshot({ path: info.outputPath(`recording-delete-${width}.png`) });
+    await dialog.getByRole('checkbox').check();
+    await expect(dialog.getByRole('button', { name: '刪除記錄' })).toBeEnabled();
+    await dialog.getByRole('button', { name: '取消' }).click();
+    expect(ledger.writes).toEqual([]); expect(ledger.unknown).toEqual([]);
+  });
+}

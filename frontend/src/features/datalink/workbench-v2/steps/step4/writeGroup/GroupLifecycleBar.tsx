@@ -27,6 +27,7 @@ export interface GroupLifecycleBarProps {
   sharedReadinessReason?: string;
   readonly: boolean;
   onChanged: (group: WriteGroup, workspaceRevision?: string) => void;
+  onDeleted?: () => void;
   onConflict: () => void;
   onReviewScopedStart?: (group: WriteGroup) => void;
   lifecycleHost?: SavedRecordingActionHost;
@@ -38,7 +39,7 @@ export interface GroupLifecycleBarProps {
 
 /** One action surface in Basic and Advanced, with server authority refreshed before ordinary mutations. */
 export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
-  group, workspaceId, workspaceRevision, canApply, applyBlockedReason, sharedReadinessReason, readonly, onChanged, onConflict,
+  group, workspaceId, workspaceRevision, canApply, applyBlockedReason, sharedReadinessReason, readonly, onChanged, onDeleted, onConflict,
   onReviewScopedStart, lifecycleHost, hideApply = false, confirmStop = false, locatorScope, locatorGuard, compact = false,
 }) => {
   const { t } = useTranslation('workbench-v2');
@@ -50,6 +51,7 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
   const lifecycle = useWriteGroupLifecycleQuery(workspaceId, group.id);
   const [confirmation, setConfirmation] = useState<{ action: 'stop' | 'remove'; owner: object; lease: object } | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const [deleteComplete, setDeleteComplete] = useState(false);
   const [refreshBlocked, setRefreshBlocked] = useState(false);
   const [checking, setChecking] = useState(false);
   const busyRef = useRef(false);
@@ -72,7 +74,8 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
     return () => { mountedRef.current = false; };
   }, []);
   const intentScope = { workspaceId, groupId: group.id, workspaceRevision, groupRevision: group.revision };
-  const snapshot = !lifecycle.isError && lifecycleMatches(lifecycle.data, intentScope) ? lifecycle.data : undefined;
+  const snapshot = !lifecycle.isError && lifecycleMatches(lifecycle.data, intentScope) && lifecycle.data.applied_revision === group.applied_revision &&
+    lifecycle.data.connector_id === group.destination.connector_id && lifecycle.data.connector_revision === group.destination.connector_revision ? lifecycle.data : undefined;
   const deleted = group.status === 'deleted';
   const busy = checking || apply.isPending || disable.isPending || remove.isPending;
   const reviewStart = onReviewScopedStart ?? lifecycleHost?.onReviewScopedStart;
@@ -98,10 +101,12 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
         const fresh = refreshed.isError || refreshed.error ? undefined : refreshed.data;
         if (!mountedRef.current || scopeRef.current !== requestScope || scopeOwner.current !== requestOwner ||
           locatorLease.current !== requestLease || requestLease.key !== null && locatorLease.current.blocked) return;
-        if (!lifecycleMatches(fresh, intentScope) || !fresh.actions.some((entry) => entry.action === action && entry.allowed)) {
+        if (!lifecycleMatches(fresh, intentScope) || action === 'remove' && (fresh.applied_revision !== group.applied_revision ||
+          fresh.connector_id !== group.destination.connector_id || fresh.connector_revision !== group.destination.connector_revision) ||
+          !fresh.actions.some((entry) => entry.action === action && entry.allowed)) {
           dismissPreCommandConfirmation(); setRefreshBlocked(true); onConflict(); return;
         }
-        if (!confirm && (action === 'remove' || action === 'stop' && confirmStop)) { setConfirmation({ action, owner: requestOwner, lease: requestLease }); return; }
+        if (!confirm && (action === 'remove' || action === 'stop' && confirmStop)) { setDeleteComplete(false); setConfirmation({ action, owner: requestOwner, lease: requestLease }); return; }
       }
       const mutation = action === 'apply' ? apply : action === 'stop' ? disable : remove;
       commandStarted = true;
@@ -110,7 +115,8 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
         expected_group_revision: group.revision, expected_connector_revision: group.destination.connector_revision,
       } });
       if (mountedRef.current && scopeRef.current === requestScope && scopeOwner.current === requestOwner) {
-        setConfirmation(null); onChanged(result.group, result.workspace_revision);
+        if ('deleted' in result) setDeleteComplete(true);
+        else { setConfirmation(null); onChanged(result.group, result.workspace_revision); }
       }
     } catch (cause) {
       if (mountedRef.current && scopeRef.current === requestScope && scopeOwner.current === requestOwner) {
@@ -150,9 +156,10 @@ export const GroupLifecycleBar: React.FC<GroupLifecycleBarProps> = ({
     {compact && !snapshot && <p role="status" className="text-sm text-[var(--gw-warning-fg)]">{lifecycleT('reason.lifecycle_unavailable')}</p>}
     {(!snapshot || refreshBlocked) && <button type="button" onClick={() => { void lifecycle.refetch(); onConflict(); }} className="text-xs underline" data-testid="saved-recording-refresh">{lifecycleT('refresh')}</button>}
     {!compact && <p className="text-xs text-[var(--gw-muted)]">{lifecycleT('stop.keeps')}</p>}
-    <SavedRecordingRemoveDialog action={confirmation?.action} open={Boolean(confirmingAction)} busy={busy || readonly} history={snapshot?.history}
-      onClose={() => setConfirmation(null)} onConfirm={() => { if (confirmingAction) void run(confirmingAction, true); }} returnFocus={returnFocus.current} objectLabel={group.name} focusOwner={scopeOwner.current} fallbackFocus={returnContext.current} />
+    <SavedRecordingRemoveDialog action={confirmation?.action} open={Boolean(confirmingAction)} busy={busy || readonly} completed={deleteComplete} group={group} history={snapshot?.history} error={confirmingAction === 'remove' ? error : undefined}
+      onStop={() => { setConfirmation(null); void run('stop'); }} onOpenRecording={() => setConfirmation(null)} onRefresh={() => { setError(null); void lifecycle.refetch(); onConflict(); }}
+      onClose={() => { setError(null); setConfirmation(null); if (deleteComplete) { setDeleteComplete(false); if (onDeleted) onDeleted(); else onConflict(); } }} onConfirm={() => { if (confirmingAction) void run(confirmingAction, true); }} returnFocus={returnFocus.current} objectLabel={group.name} focusOwner={scopeOwner.current} fallbackFocus={returnContext.current} />
     {refreshBlocked && <p role="alert" className="text-xs text-[var(--gw-warning-fg)]">{lifecycleT('reason.stale_scope')}</p>}
-    {error !== null && <p role="alert" className="text-xs text-[var(--gw-danger-fg)]" data-testid="group-lifecycle-error">{getSafeErrorMessage(error, t).message}</p>}
+    {error !== null && confirmingAction !== 'remove' && <p role="alert" className="text-xs text-[var(--gw-danger-fg)]" data-testid="group-lifecycle-error">{getSafeErrorMessage(error, t).message}</p>}
   </div>;
 };

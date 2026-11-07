@@ -185,14 +185,14 @@ describe('Step4 locator focuses native saved card, never mounts an editor automa
       return lifecycle;
     });
     const accepted = { data: { success: true, data: { workspace_revision: 'W3', group } } };
-    vi.mocked(studioV2DatalinkApi.post).mockResolvedValue(accepted); vi.mocked(studioV2DatalinkApi.delete).mockResolvedValue(accepted);
+    vi.mocked(studioV2DatalinkApi.post).mockResolvedValue(accepted); vi.mocked(studioV2DatalinkApi.delete).mockResolvedValue({ data: { success: true, data: { deleted: true, group_id: group.id, lineage_id: 'L1', deleted_generations: 1 } } });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); clients.push(client);
     const onChanged = vi.fn();
     const content = (readonly = false) => <QueryClientProvider client={client}><GroupLifecycleBar group={group} workspaceId="W" workspaceRevision="W2"
       locatorScope={{ workspaceId: 'W', workspaceRevision: 'W2' }} readonly={readonly} canApply={false} onChanged={onChanged} onConflict={vi.fn()} /></QueryClientProvider>;
     const view = render(content());
     const action = await screen.findByTestId(removing ? 'group-delete' : 'group-disable'); await waitFor(() => expect(action).toBeEnabled()); fireEvent.click(action);
-    if (removing) { const confirm = await screen.findByTestId('group-delete-confirm-button'); expect(studioV2DatalinkApi.delete).not.toHaveBeenCalled(); fireEvent.click(confirm); }
+    if (removing) { const confirm = await screen.findByTestId('group-delete-confirm-button'); expect(studioV2DatalinkApi.delete).not.toHaveBeenCalled(); fireEvent.click(screen.getByRole('checkbox', { name: 'deleteDialogs.recording.acknowledge' })); fireEvent.click(confirm); }
     await waitFor(() => expect(reads).toBe(removing ? 3 : 2));
     if (!scenario.endsWith('unchanged')) view.rerender(content(true));
     if (scenario.endsWith('roundtrip')) view.rerender(content(false));

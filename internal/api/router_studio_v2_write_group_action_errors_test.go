@@ -50,7 +50,7 @@ func TestWriteGroupRemoveActionErrorsPreserveCompatibilityAndState(t *testing.T)
 				body := decodeJSONBody(t, response)
 				assertWriteGroupError(t, body, tc.code)
 				envelope := body["error"].(map[string]any)
-				require.Equal(t, tc.reason, envelope["reason_code"])
+				require.Equal(t, tc.reason, envelope["reason_code"], response.Body.String())
 				next, legacy := "stop", "disable_group"
 				if stopped {
 					next, legacy = "review_connector", "review_group"

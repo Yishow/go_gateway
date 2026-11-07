@@ -1,0 +1,29 @@
+{
+  "deviceStatus": {
+    "summary": "Home status summary",
+    "devices": "Devices",
+    "recordings": "Recordings",
+    "runtimeWrites": "Runtime cumulative writes",
+    "writeSuccess": "Successful",
+    "writeError": "Errors",
+    "outdated": "Status may be outdated. Refresh or try again.",
+    "strip": "Device connection status",
+    "column": "Connection status",
+    "attention_one": "{{count}} item needs attention",
+    "attention_other": "{{count}} items need attention",
+    "lastUpdated": "Last updated {{time}}",
+    "freshnessHelp": "About this observation",
+    "resumeDraft": "Continue draft: {{name}}",
+    "resume": "Continue editing",
+    "states": { "collecting": "Collecting", "degraded": "Partly abnormal", "disconnected": "Disconnected", "idle": "Not collecting", "unavailable": "Status unavailable" },
+    "points": "{{healthy}}/{{total}} points healthy",
+    "pointsUnknown": "Point status unavailable",
+    "readUnknown": "Last read unavailable",
+    "secondsAgo_one": "{{count}} second ago",
+    "secondsAgo_other": "{{count}} seconds ago",
+    "minutesAgo_one": "{{count}} minute ago",
+    "minutesAgo_other": "{{count}} minutes ago",
+    "hoursAgo_one": "{{count}} hour ago",
+    "hoursAgo_other": "{{count}} hours ago"
+  }
+}

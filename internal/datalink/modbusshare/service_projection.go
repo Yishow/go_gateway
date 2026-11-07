@@ -50,6 +50,15 @@ func (s *Service) FailClosed(state HydrationState) {
 	s.state = HydrationStateFailed
 }
 
+// FailClosedMembership prevents a stale workspace membership from serving data.
+func (s *Service) FailClosedMembership() {
+	if s == nil {
+		return
+	}
+	state, _ := s.CheckHydration(context.Background())
+	s.FailClosed(state)
+}
+
 // SetRestoreMemoryHook is a narrow failure-injection seam for rollback tests.
 func (s *Service) SetRestoreMemoryHook(hook func([]byte) error) {
 	s.mu.Lock()

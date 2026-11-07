@@ -64,7 +64,19 @@ func TestLifecycleCommitRejectsCachedBoundaryIntakeBeforeReconcile(t *testing.T)
 			if action == "stop" {
 				_, err = service.Disable(t.Context(), group.ID, mutation)
 			} else {
-				_, err = service.Delete(t.Context(), group.ID, mutation)
+				stopped, stopErr := service.Disable(t.Context(), group.ID, mutation)
+				require.NoError(t, stopErr)
+				mutation.ExpectedWorkspaceRevision = stopped.WorkspaceRevision
+				mutation.ExpectedGroupRevision = stopped.Group.Revision
+				beforeDelete := backlogOwnershipState(t, db)
+				_, deleteErr := service.Delete(t.Context(), group.ID, mutation)
+				require.ErrorContains(t, deleteErr, "WRITE_GROUP_DELETE_BACKLOG")
+				var refusal *workspace.WriteGroupDeleteError
+				require.ErrorAs(t, deleteErr, &refusal)
+				counts := refusal.Details.(workspace.WriteGroupDeleteBacklog)
+				require.Equal(t, 2, counts.SamplesUnconsumed)
+				require.Equal(t, map[string]int{"pending": 1}, counts.Outbox)
+				require.Equal(t, beforeDelete, backlogOwnershipState(t, db))
 			}
 			require.NoError(t, err)
 			eligibility, err := service.IntakeEligibility(t.Context(), group.ID)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go-gateway/internal/datalink/schema"
 	"go-gateway/internal/datalink/workspace"
+	"go-gateway/internal/testutil/legacyrecording"
 	"net/url"
 	"slices"
 	"strings"
@@ -217,8 +218,7 @@ func TestStudioV2LocatorEntryTombstoneDoesNotUseSameNameReplacement(t *testing.T
 	require.Equal(t, 201, createdDraft.Code, createdDraft.Body.String())
 	_, draftGroup := groupSaveData(t, decodeJSONBody(t, createdDraft))
 	id := draftGroup["id"].(string)
-	removed := performJSONRequest(t, r.f.router, "DELETE", writeGroupsPath+"/"+id, scopeBody(t, r.f, id))
-	require.Equal(t, 200, removed.Code, removed.Body.String())
+	require.NoError(t, legacyrecording.Tombstone(t.Context(), r.f.db, id))
 	res := locatorRequest(t, r, "4", url.Values{"group_id": {id}})
 	entry := locatorEntryData(t, res)
 	group := entry["write_groups"].(map[string]any)["groups"].([]any)[0].(map[string]any)

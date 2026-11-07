@@ -197,16 +197,29 @@ describe('test-only real-host browser fixture: strict API contracts, NOT browser
     expect(direct(mock, 'schema-preview', altered).status).not.toBe(200);
     expect(mock.snapshot().status?.schema_operations).toEqual([]);
   });
-  it('stop/remove preserve accepted history and forbid stale or blocked mutation', async () => {
+  it('stop preserves accepted history and permanent removal removes the recording from the list', async () => {
     const mock = createRecordingLifecycleMock(); connect(mock);
     const history = (await lifecycleAPI.lifecycle('G1')).history.generations[0].revisions;
     const request = () => ({ workspace_id: 'ws-1', expected_workspace_revision: mock.snapshot().workspaceRevision, expected_group_revision: mock.snapshot().source.revision, expected_connector_revision: 'crev-1' });
     const old = request(); await groupsAPI.disable('G1', old);
-    await expect(groupsAPI.remove('G1', old)).rejects.toBeDefined();
-    expect((await groupsAPI.remove('G1', request())).group.status).toBe('deleted');
     expect((await lifecycleAPI.lifecycle('G1')).history.generations[0].revisions).toEqual(history);
+    await expect(groupsAPI.remove('G1', old)).rejects.toBeDefined();
+    expect(await groupsAPI.remove('G1', request())).toEqual({ deleted: true, group_id: 'G1', lineage_id: 'L', deleted_generations: 1 });
+    expect((await groupsAPI.list()).groups).toEqual([]);
     const blocked = createRecordingLifecycleMock('blocked-wide');
     expect(blocked.handle({ method: 'DELETE', url: `${FIXTURE_PATH}/write-groups/G1`, body: { ...old, expected_workspace_revision: 'W1', expected_group_revision: 'R1' } }).status).toBe(409);
+  });
+  it.each([
+    { code: 'WRITE_GROUP_DELETE_BACKLOG', action: 'stop_and_wait', details: { samples_unconsumed: 3, outbox: { retrying: 1, unknown: 1 } } },
+    { code: 'WRITE_GROUP_DELETE_ACTIVE', action: 'stop_first' },
+    { code: 'WRITE_GROUP_DELETE_OPERATION_PENDING', action: 'open_recording' },
+    { code: 'WRITE_GROUP_DELETE_HAS_SUCCESSOR', action: 'open_recording' },
+  ])('returns configured deletion refusal $code without removing the group', async conflict => {
+    const mock = createRecordingLifecycleMock(); connect(mock);
+    mock.rejectNext('remove', conflict);
+    const request = { workspace_id: 'ws-1', expected_workspace_revision: 'W1', expected_group_revision: 'R1', expected_connector_revision: 'crev-1' };
+    await expect(groupsAPI.remove('G1', request)).rejects.toMatchObject({ ...conflict, outcome: 'failed' });
+    expect((await groupsAPI.list()).groups.map(group => group.id)).toEqual(['G1']);
   });
   it('blocked review and stale scenarios return a repairable contract, not unconditional 200', async () => {
     const { mock, review } = await reviewed('review-blocked-wide');

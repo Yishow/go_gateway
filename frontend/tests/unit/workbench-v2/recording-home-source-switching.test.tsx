@@ -1,5 +1,6 @@
 import { recordingHomeSourcesAPI } from '@/services/recordingHomeSources';
 import { homeSources } from './recording-home-source-fixtures';
+import { homeDeviceAction } from './recording-home-device-actions';
 import { StrictMode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -69,7 +70,7 @@ function mount(strict = false) {
   return render(strict ? <StrictMode>{page}</StrictMode> : page);
 }
 async function open(id = 'D') {
-  fireEvent.click(await screen.findByTestId(`home-device-points-${id}`));
+  fireEvent.click(await homeDeviceAction(id));
   return screen.findByRole('dialog');
 }
 const header = (dialog: HTMLElement) => dialog.querySelector<HTMLElement>('.gw-modal-header')!;
@@ -147,7 +148,7 @@ describe('one settings frame switches devices', () => {
 
 describe('the device row uses the last validated Home projection', () => {
   it('offers every workspace device even when opened during a background source refresh', async () => {
-    mount(); const trigger = await screen.findByTestId('home-device-points-D');
+    mount(); const trigger = await homeDeviceAction();
     vi.mocked(recordingHomeSourcesAPI.read).mockImplementation(() => new Promise(() => undefined));
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
     await waitFor(() => expect(recordingHomeSourcesAPI.read).toHaveBeenCalledTimes(2));

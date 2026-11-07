@@ -48,12 +48,12 @@ it('a late pre-confirmation read after A→B→A cannot reopen old consent', asy
 });
 
 it('an issued remove reply cannot settle a new A→B→A owner or refocus the reused trigger', async () => {
-  let reply!: (value: { group: typeof group; workspace_revision: string }) => void;
+  let reply!: (value: { deleted: true; group_id: string; lineage_id: string; deleted_generations: number }) => void;
   mocks.remove.mockReturnValueOnce(new Promise(resolve => { reply = resolve; }));
   const rerender = setup(); const original = group; fireEvent.click(screen.getByTestId('group-delete'));
-  fireEvent.click(await screen.findByTestId('group-delete-confirm-button')); await waitFor(() => expect(mocks.remove).toHaveBeenCalledOnce());
+  await screen.findByTestId('group-delete-confirm-button'); fireEvent.click(screen.getByRole('checkbox', { name: 'deleteDialogs.recording.acknowledge' })); fireEvent.click(screen.getByTestId('group-delete-confirm-button')); await waitFor(() => expect(mocks.remove).toHaveBeenCalledOnce());
   group = { ...original, revision: 'rev-2' }; rerender(); group = original; rerender();
-  await act(async () => reply({ group: { ...original, status: 'deleted' }, workspace_revision: 'wrev-2' }));
+  await act(async () => reply({ deleted: true, group_id: original.id, lineage_id: 'L1', deleted_generations: 1 }));
   expect(rerender.changed).not.toHaveBeenCalled(); expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   expect(screen.getByTestId('group-delete')).not.toHaveFocus();
   fireEvent.click(screen.getByTestId('group-delete')); await screen.findByRole('alertdialog');

@@ -1,5 +1,6 @@
 import { recordingHomeSourcesAPI } from '@/services/recordingHomeSources';
 import { homeSources } from './recording-home-source-fixtures';
+import { homeDeviceAction } from './recording-home-device-actions';
 import { StrictMode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -90,7 +91,7 @@ async function openNewRange(entry: 'direct' | 'memory') {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } }); clients.push(client);
   render(<StrictMode><QueryClientProvider client={client}><DatalinkWorkbenchV2Page presentation="recordings" locatorIntent={{ kind: 'absent' }}
     presentationLocation={{ search: '?view=recordings', hash: '#home' }} navigateTo={vi.fn()} /></QueryClientProvider></StrictMode>);
-  fireEvent.click(await screen.findByTestId('home-device-points-D'));
+  fireEvent.click(await homeDeviceAction());
   const dialog = await screen.findByRole('dialog');
   await waitFor(() => expect(within(dialog).getByTestId('home-range-option-I')).toHaveAttribute('aria-pressed', 'true'));
   if (entry === 'direct') {

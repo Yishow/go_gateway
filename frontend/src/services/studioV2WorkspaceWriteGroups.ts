@@ -39,6 +39,7 @@ import {
 import type { WriteGroupCutover, WriteGroupCutoverRequest, WriteGroupCutoverReview } from '../types/studioV2WriteGroupCutover';
 import { cutoverBody, parseWriteGroupCutover, parseWriteGroupCutoverList, parseWriteGroupCutoverReview } from '../utils/studioV2WriteGroupCutoverJson';
 import { studioV2DatalinkApi } from './studioV2Workspace';
+import { removeWriteGroup } from './studioV2WorkspaceDelete';
 
 const WRITE_GROUP_OBJECT_RESPONSE_MAX_DEPTH = 8;
 
@@ -284,13 +285,7 @@ export const studioV2WorkspaceWriteGroupsAPI = {
     return parseWriteGroupAPIData(res.data, 'write-group update', parseWriteGroupMutationData, WRITE_GROUP_OBJECT_RESPONSE_MAX_DEPTH);
   },
 
-  async remove(id: string, request: WriteGroupDeleteRequest): Promise<WriteGroupMutationResponse> {
-    const res = await studioV2DatalinkApi.delete<unknown>(
-      `/studio-v2/workspace/write-groups/${encodeURIComponent(id)}`,
-      { data: { ...request } },
-    );
-    return parseWriteGroupAPIData(res.data, 'write-group delete', parseWriteGroupMutationData, WRITE_GROUP_OBJECT_RESPONSE_MAX_DEPTH);
-  },
+  remove: removeWriteGroup,
 
   async disable(id: string, request: WriteGroupDeleteRequest): Promise<WriteGroupMutationResponse> {
     const payload: WriteGroupDeleteRequest = {

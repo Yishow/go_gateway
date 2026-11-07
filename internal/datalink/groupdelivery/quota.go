@@ -233,10 +233,8 @@ func diskFullError(used int64) *QuotaError {
 	return &QuotaError{Reason: ReasonDiskFull, Scope: QuotaScopeGlobal, UsedBytes: used}
 }
 
-// Reclaim deletes only data that is finished: consumed journal samples,
-// committed or operator-skipped outbox rows and per-bucket status history older
-// than the retention. It never
-// touches pending, sending, retrying, blocked, unknown or quarantined data.
+// Reclaim deletes finished samples, eligible outbox rows and their receipts,
+// and old bucket history; pending or uncertain data is never reclaimed.
 func (s *Store) Reclaim(ctx context.Context, retention time.Duration) (int64, error) {
 	cutoff := timestamp(s.now().Add(-retention))
 	var removed int64
@@ -248,10 +246,12 @@ func (s *Store) Reclaim(ctx context.Context, retention time.Duration) (int64, er
 		if err != nil {
 			return fmt.Errorf("reclaim consumed samples: %w", err)
 		}
-		outbox, err := tx.ExecContext(ctx, `
-			DELETE FROM wg_delivery_outbox
-			WHERE (state = 'sql_committed' AND committed_at != '' AND committed_at <= ?)
-			   OR (state = 'operator_skipped' AND updated_at <= ?)`, cutoff, cutoff)
+		const finishedOutbox = `(state = 'sql_committed' AND committed_at != '' AND committed_at <= ?) OR (state = 'operator_skipped' AND updated_at <= ?)`
+		receipts, err := tx.ExecContext(ctx, `DELETE FROM wg_delivery_receipts WHERE effect_key IN (SELECT effect_key FROM wg_delivery_outbox WHERE `+finishedOutbox+`)`, cutoff, cutoff)
+		if err != nil {
+			return fmt.Errorf("reclaim finished delivery receipts: %w", err)
+		}
+		outbox, err := tx.ExecContext(ctx, `DELETE FROM wg_delivery_outbox WHERE `+finishedOutbox, cutoff, cutoff)
 		if err != nil {
 			return fmt.Errorf("reclaim finished outbox rows: %w", err)
 		}
@@ -263,7 +263,7 @@ func (s *Store) Reclaim(ctx context.Context, retention time.Duration) (int64, er
 		if err != nil {
 			return fmt.Errorf("reclaim mixed status: %w", err)
 		}
-		for _, result := range []sql.Result{samples, outbox, buckets, mixed} {
+		for _, result := range []sql.Result{samples, receipts, outbox, buckets, mixed} {
 			if n, err := result.RowsAffected(); err == nil {
 				removed += n
 			}

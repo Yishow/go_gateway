@@ -44,9 +44,13 @@ type WriteGroupMutation struct {
 // WriteGroupSaveResult contains the coherent workspace and canonical group
 // snapshot returned after a successful create, update, or delete.
 type WriteGroupSaveResult struct {
-	Capabilities      *WriteGroupCalculationCapabilities `json:"calculation_capabilities" readonly:"true"`
-	WorkspaceRevision string                             `json:"workspace_revision"`
-	Group             *WriteGroup                        `json:"group"`
+	Capabilities       *WriteGroupCalculationCapabilities `json:"calculation_capabilities" readonly:"true"`
+	WorkspaceRevision  string                             `json:"workspace_revision"`
+	Group              *WriteGroup                        `json:"group"`
+	Deleted            bool                               `json:"-"`
+	GroupID            string                             `json:"-"`
+	LineageID          string                             `json:"-"`
+	DeletedGenerations int                                `json:"-"`
 }
 
 // WriteGroupListResult contains one workspace revision and its group snapshot.
@@ -65,6 +69,7 @@ type WriteGroupService struct {
 	tableInspector            WriteGroupTableInspector
 	managedTableInspector     ManagedWriteGroupTableInspector
 	backlogGuard              WriteGroupBacklogOwnershipGuard
+	audit                     writeGroupAuditRecorder
 	writerOwnershipActivation WriterOwnershipActivationBarrier
 	cutoverObservation        CutoverObservationConfig
 	basicManagedMu            sync.Mutex
@@ -203,70 +208,9 @@ func (s *WriteGroupService) updateWithCheckpoint(ctx context.Context, id string,
 	return &WriteGroupSaveResult{WorkspaceRevision: updated.DatabaseSetupRevision, Group: saved}, nil
 }
 
-// Delete tombstones a write group while retaining its identity and accepted data.
+// Delete removes a drained recording and its internal lineage atomically.
 func (s *WriteGroupService) Delete(ctx context.Context, id string, mutation WriteGroupMutation) (*WriteGroupSaveResult, error) {
-	if err := s.validate(); err != nil {
-		return nil, err
-	}
-	id = strings.TrimSpace(id)
-	if id == "" {
-		return nil, fmt.Errorf("delete write group: %w", ErrWriteGroupValidation)
-	}
-	mutation, err := prepareWriteGroupMutation(mutation, true, false)
-	if err != nil {
-		return nil, err
-	}
-	var saved *WriteGroup
-	updated, err := s.workspaceSvc.UpdateDatabaseSetup(ctx, mutation.ExpectedWorkspaceRevision, func(ctx context.Context, tx *sql.Tx, record *Record) error {
-		if record.ID != mutation.WorkspaceID {
-			return writeGroupNotFound("delete write group")
-		}
-		existing, err := s.repo.GetInTx(ctx, tx, record.ID, id)
-		if err != nil {
-			return err
-		}
-		if existing.Revision != mutation.ExpectedGroupRevision {
-			return writeGroupRevisionConflict("write group revision is stale")
-		}
-		if existing.Status == WriteGroupStatusDeleted {
-			return ErrWriteGroupLifecycleBlocked
-		}
-		if existing.AppliedRevision != "" {
-			if s.backlogGuard == nil {
-				return writeGroupRemoveActionError(existing, writeGroupReasonOwnershipUnavailable, ErrWriteGroupLifecycleBlocked)
-			}
-			if err := s.backlogGuard.CheckWriteGroupBacklog(ctx, tx, existing); err != nil {
-				return writeGroupRemoveActionError(existing, writeGroupReasonOwnershipUnavailable, errors.Join(ErrWriteGroupLifecycleBlocked, err))
-			}
-		}
-		if existing.Destination.ConnectorRevision != mutation.ExpectedConnectorRevision {
-			return writeGroupRevisionConflict("write group connector revision is stale")
-		}
-		if err := s.repo.requireUnreservedWriteGroupInTx(ctx, tx, record.ID, id); err != nil {
-			return err
-		}
-		if err := validateLiveWriteGroupConnector(ctx, tx, s.repo, existing.Destination.ConnectorID, mutation.ExpectedConnectorRevision); err != nil {
-			reason := writeGroupReasonConnectorUnavailable
-			if errors.Is(err, ErrWriteGroupConnectorRevisionConflict) {
-				reason = writeGroupReasonConnectorIdentityStale
-			}
-			return writeGroupRemoveActionError(existing, reason, err)
-		}
-		candidate := cloneWriteGroup(existing)
-		candidate.Status = WriteGroupStatusDeleted
-		if err := s.repo.updateInTx(ctx, tx, candidate, false); err != nil {
-			return err
-		}
-		if err := projectWriteGroup(record, candidate); err != nil {
-			return err
-		}
-		saved = cloneWriteGroup(candidate)
-		return nil
-	})
-	if err != nil {
-		return nil, normalizeWriteGroupServiceError("delete write group", err)
-	}
-	return &WriteGroupSaveResult{WorkspaceRevision: updated.DatabaseSetupRevision, Group: saved}, nil
+	return s.permanentDelete(ctx, id, mutation)
 }
 
 // List returns a coherent workspace and group snapshot.

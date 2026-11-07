@@ -1,5 +1,6 @@
 import { recordingHomeSourcesAPI } from '@/services/recordingHomeSources';
 import { homeSources } from './recording-home-source-fixtures';
+import { homeDeviceAction } from './recording-home-device-actions';
 import { StrictMode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -91,7 +92,7 @@ async function openInactiveRange() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } }); clients.push(client);
   render(<StrictMode><QueryClientProvider client={client}><DatalinkWorkbenchV2Page presentation="recordings" locatorIntent={{ kind: 'absent' }}
     presentationLocation={{ search: '?view=recordings', hash: '' }} navigateTo={vi.fn()} /></QueryClientProvider></StrictMode>);
-  fireEvent.click(await screen.findByTestId('home-device-points-D'));
+  fireEvent.click(await homeDeviceAction());
   const dialog = await screen.findByRole('dialog');
   fireEvent.change(await within(dialog).findByLabelText('Starting address', { selector: 'input' }), { target: { value: 'D0' } });
   fireEvent.change(within(dialog).getByLabelText('Number of data items', { selector: 'input' }), { target: { value: '1' } });

@@ -27,6 +27,19 @@
 - 產品決策已定為直接把服務預設入口切到 `/studio/v2`。
 - `commit` 的正式方向已定為多台設備；現有 handoff 與 runtime route 仍偏單台心智。
 
+### 記錄首頁：設備狀態與刪除
+
+- 記錄首頁以不帶 `device_id` 的 `GET /api/v1/datalink/runtime/status` 取得整個 workspace 的 collectors，依 `device_id` 對應已保存設備；頁面可見時每 5 秒輪詢，隱藏或卸載時停止輪詢。
+- 最後一次成功快照從前端收到的時間起，在 15 秒內仍可使用；後續讀取失敗或 `snapshot_state.stale` 時顯示「狀態可能過期」。快照無法取得、被標為 unavailable、達 15 秒或找不到該設備的 collector 時，設備狀態為「狀態無法取得」。
+- 有可用 collector 時依序判斷，第一項成立即停止：
+  1. `breaker_state` 不是 `closed` 或 `status=error`：中斷。
+  2. `running=false`、`availability_status=unavailable` 或 `points_total=0`：未採集。
+  3. 有 error／stale 點位、健康點數不等於總點數、`status=warning`、有 last error、讀值時間無效，或距上次讀值超過 `max(3 × effective_interval_ms, 5000ms)`：部分異常；無效的採集間隔以 5000ms 下限判斷。
+  4. 其餘為採集中。狀態同時使用文字、圖示與顏色呈現。
+- 頁首摘要顯示設備總數與五種連線狀態數量、記錄總數與保存狀態分布，以及 runtime 累計的寫入成功／錯誤數；runtime 累計不是 SQL 已確認的證據。設備卡顯示名稱、協議、狀態、健康點數及相對讀值時間，點選可篩選記錄。
+- 首頁與記錄編輯器的刪除記錄會永久刪除該 lineage 所有 generation 的內部設定和專屬交付資料，保留外部目的資料表及資料列。仍在 intake、存在待送資料或未完成操作、或其他記錄仍依賴其 ownership proof 時，API 以 `WRITE_GROUP_DELETE_ACTIVE`、`WRITE_GROUP_DELETE_BACKLOG`、`WRITE_GROUP_DELETE_OPERATION_PENDING` 或 `WRITE_GROUP_DELETE_HAS_SUCCESSOR` 拒絕。
+- 刪除設備前檢查非 tombstone 記錄引用；有引用回 `DEVICE_REFERENCED_BY_RECORDINGS`，不做變更。設備刪除已提交後，Share scope 更新或連線關閉仍可能回 500；此時應重新整理並檢查實際狀態。成功回應、錯誤 details、保留資料與提交後限制見 [Backend API Registry](./backend-api-registry.md)。
+
 ### Modbus Share startup and projection transaction semantics
 
 - Startup first loads persisted listener settings without binding. It then restores the canonical projection from persisted source-rule candidates under the workspace revision; only `ready` hydration with non-empty durable workspace/settings revisions, readiness, and readiness token permits the configured listener to bind. A settings/workspace/revision/restore failure leaves hydration failed or pending and the listener stopped. Uncertain rollback fails closed before `MarkDirty`; even a failed dirty-marker write cannot reopen listener/readiness.

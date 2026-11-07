@@ -15,6 +15,7 @@ import (
 	"go-gateway/internal/datalink/recordingplan"
 	"go-gateway/internal/datalink/tag"
 	"go-gateway/internal/datalink/workspace"
+	"go-gateway/internal/testutil/legacyrecording"
 
 	"github.com/stretchr/testify/require"
 )
@@ -25,8 +26,8 @@ type firstStartAPIRig struct {
 	schemaToken     recordingplan.SchemaPreviewToken
 }
 
-// Create and remove an actual draft through public routes. No version/history
-// is deleted to manufacture NoHistory; G1 has never been applied or reconciled.
+// Create a draft through public routes and retain it as a legacy tombstone.
+// G1 has never been applied or reconciled; no version/history is removed.
 func newFirstStartAPIRig(t *testing.T, kind string, sourceLong, targetLong, counter bool, mode workspace.WriteGroupStorageMode, open ...func(string) *sql.DB) *firstStartAPIRig {
 	t.Helper()
 	var f managedGroupFixture
@@ -77,8 +78,7 @@ func newFirstStartAPIRig(t *testing.T, kind string, sourceLong, targetLong, coun
 	require.Equal(t, http.StatusOK, created.Code, created.Body.String())
 	_, saved := groupSaveData(t, decodeJSONBody(t, created))
 	id := saved["id"].(string)
-	removed := performJSONRequest(t, f.router, http.MethodDelete, writeGroupsPath+"/"+id, scopeBody(t, f, id))
-	require.Equal(t, http.StatusOK, removed.Code, removed.Body.String())
+	require.NoError(t, legacyrecording.Tombstone(t.Context(), f.db, id))
 	old, err := f.groups.Get(t.Context(), id)
 	require.NoError(t, err)
 	require.Empty(t, old.Group.AppliedRevision)

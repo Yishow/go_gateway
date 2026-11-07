@@ -97,6 +97,9 @@ func TestWriteGroupRemoveUnknownAcceptedOwnerIsNoOp(t *testing.T) {
 	for _, pending := range []string{"sample", "row"} {
 		t.Run(pending, func(t *testing.T) {
 			r := lifecyclePendingRig(t)
+			// Keep this backlog case before the service's activation boundary.
+			beforeEffective := r.groups[0].snapshot.EffectiveAt.Add(-time.Second)
+			r.f.groups.WithClock(func() time.Time { return beforeEffective })
 			id := r.groups[0].id
 			query := `UPDATE wg_delivery_samples SET group_revision='R0',origin_revision='R0' WHERE sample_id='Q1'`
 			if pending == "row" {
@@ -109,10 +112,12 @@ func TestWriteGroupRemoveUnknownAcceptedOwnerIsNoOp(t *testing.T) {
 			response := performJSONRequest(t, r.f.router, http.MethodDelete, writeGroupsPath+"/"+id, request)
 			require.Equal(t, http.StatusConflict, response.Code, response.Body.String())
 			body := decodeJSONBody(t, response)
-			assertWriteGroupError(t, body, "WRITE_GROUP_LIFECYCLE_BLOCKED")
+			assertWriteGroupError(t, body, "WRITE_GROUP_DELETE_BACKLOG")
 			envelope := body["error"].(map[string]any)
-			require.Equal(t, "ownership_unavailable", envelope["reason_code"])
-			require.Equal(t, "stop", envelope["next_action"])
+			require.Equal(t, "stop_and_wait", envelope["action"])
+			details := envelope["details"].(map[string]any)
+			require.EqualValues(t, 1, details["samples_unconsumed"])
+			require.EqualValues(t, 1, details["outbox"].(map[string]any)["pending"])
 			require.NotContains(t, response.Body.String(), "R0")
 			require.Equal(t, before, lifecycleAPIState(t, r.f.db))
 			require.Equal(t, rows, r.stored())
@@ -126,23 +131,31 @@ func TestWriteGroupRemoveUnknownAcceptedOwnerIsNoOp(t *testing.T) {
 	}
 }
 
-func TestWriteGroupRemoveProvenBacklogKeepsReadableTombstone(t *testing.T) {
+func TestWriteGroupRemoveProvenBacklogRefusesWithoutChangingData(t *testing.T) {
 	r := lifecyclePendingRig(t)
 	id := r.groups[0].id
-	before, rows, receipts := lifecycleAcceptedState(t, r), r.stored(), r.receipts()
+	before, rows, receipts := lifecycleAPIState(t, r.f.db), r.stored(), r.receipts()
+	original := getGroup(t, r.f, id)
 	response := performJSONRequest(t, r.f.router, http.MethodDelete, writeGroupsPath+"/"+id, scopeBody(t, r.f, id))
-	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	require.Equal(t, http.StatusConflict, response.Code, response.Body.String())
+	body := decodeJSONBody(t, response)
+	assertWriteGroupError(t, body, "WRITE_GROUP_DELETE_BACKLOG")
+	envelope := body["error"].(map[string]any)
+	require.Equal(t, "stop_and_wait", envelope["action"])
+	details := envelope["details"].(map[string]any)
+	require.EqualValues(t, 1, details["samples_unconsumed"])
+	require.EqualValues(t, 1, details["outbox"].(map[string]any)["pending"])
 	group := getGroup(t, r.f, id)
-	require.Equal(t, "deleted", group["status"])
-	require.Equal(t, before, lifecycleAcceptedState(t, r))
+	require.Equal(t, original, group)
+	require.Equal(t, before, lifecycleAPIState(t, r.f.db))
 	require.Equal(t, rows, r.stored())
 	require.Equal(t, receipts, r.receipts())
 	// Reopening the production worker still delivers the already-frozen row
-	// to its original table; the tombstone is not treated as a cancel request.
+	// to its original table; the refused deletion is not a cancel request.
 	frozen := r.outboxDigests()
 	require.NoError(t, r.pipe.Start(t.Context()))
 	t.Cleanup(func() { _ = r.pipe.Stop(time.Second) })
-	r.committed(2, "the tombstoned group's queued row reaches its frozen destination")
+	r.committed(2, "the retained group's queued row reaches its frozen destination")
 	require.NoError(t, r.pipe.Stop(time.Second))
 	require.Equal(t, frozen, r.outboxDigests())
 	require.Len(t, r.stored(), 2)

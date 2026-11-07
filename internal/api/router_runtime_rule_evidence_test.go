@@ -10,6 +10,7 @@ import (
 	"go-gateway/internal/datalink/device"
 	"go-gateway/internal/datalink/runtimeview"
 	"go-gateway/internal/datalink/workspace"
+	"go-gateway/internal/testutil/legacyrecording"
 
 	"github.com/stretchr/testify/require"
 )
@@ -105,8 +106,7 @@ func TestRuntimeRuleEvidenceStoppedOrDeletedFactsDoNotGrantIntake(t *testing.T) 
 			require.NoError(t, err)
 			mutation := workspace.WriteGroupMutation{WorkspaceID: current.Group.WorkspaceID, ExpectedWorkspaceRevision: current.WorkspaceRevision, ExpectedGroupRevision: current.Group.Revision, ExpectedConnectorRevision: current.Group.Destination.ConnectorRevision}
 			if removed {
-				r.f.groups.WithBacklogOwnershipGuard(&lifecycleAPIGuard{})
-				_, err = r.f.groups.Delete(t.Context(), current.Group.ID, mutation)
+				err = legacyrecording.Tombstone(t.Context(), r.f.db, current.Group.ID)
 			} else {
 				_, err = r.f.groups.Disable(t.Context(), current.Group.ID, mutation)
 			}

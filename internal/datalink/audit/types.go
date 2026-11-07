@@ -12,6 +12,10 @@ const (
 	EventTypeDatabaseConfigSaved EventType = "database_config_saved"
 	// EventTypeDatabaseTargetSaved records a persisted workspace database target change.
 	EventTypeDatabaseTargetSaved EventType = "database_target_saved"
+	// EventTypeWriteGroupDeleted records a permanently removed recording.
+	EventTypeWriteGroupDeleted EventType = "write_group_deleted"
+	// EventTypeDeviceDeleted records a removed workspace device.
+	EventTypeDeviceDeleted EventType = "device_deleted"
 )
 
 // Result identifies the outcome of an audited event.

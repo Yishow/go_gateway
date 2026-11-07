@@ -1,8 +1,9 @@
-import { observeRecordingHomeSourceMutation } from './useRecordingHomeSources';
+import { captureRecordingHomeSourceMutation, completeRecordingHomeSourceMutation, observeRecordingHomeSourceMutation } from './useRecordingHomeSources';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { studioV2WorkspaceKeys } from './keys';
 import { modbusShareStatusKey } from './useModbusShareStatus';
 import { studioV2WorkspaceDevicesAPI } from '../../services/studioV2WorkspaceDevices';
+import { DeleteResponseError } from '../../services/studioV2WorkspaceDelete';
 import type { CreateDeviceRequest, UpdateDeviceRequest } from '../../types/datalink';
 import type { StudioV2AvailabilityRequest } from '../../types/studioV2Availability';
 
@@ -48,15 +49,28 @@ export function useUpdateStudioV2WorkspaceDeviceMutation(workspaceId?: string) {
 
 export function useDeleteStudioV2WorkspaceDeviceMutation(workspaceId?: string) {
   const queryClient = useQueryClient();
+  const invalidate = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() }),
+      queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() }),
+      queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.writeGroups() }),
+      queryClient.invalidateQueries({ queryKey: modbusShareStatusKey }),
+    ]);
+  };
 
   return useMutation({
     retry: false,
-    mutationFn: (deviceId: string) => observeRecordingHomeSourceMutation(queryClient, () => studioV2WorkspaceDevicesAPI.remove(deviceId), workspaceId),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.bootstrap() });
-      await queryClient.invalidateQueries({ queryKey: studioV2WorkspaceKeys.devices() });
-      await queryClient.invalidateQueries({ queryKey: modbusShareStatusKey });
+    mutationFn: async (deviceId: string) => {
+      const captured = captureRecordingHomeSourceMutation(queryClient, workspaceId);
+      try {
+        await observeRecordingHomeSourceMutation(queryClient, () => studioV2WorkspaceDevicesAPI.remove(deviceId), workspaceId);
+      } catch (error) {
+        if (error instanceof DeleteResponseError && error.outcome === 'deleted') completeRecordingHomeSourceMutation(queryClient, captured);
+        throw error;
+      }
     },
+    onSuccess: invalidate,
+    onError: async error => { if (error instanceof DeleteResponseError && error.outcome === 'deleted') await invalidate(); },
   });
 }
 

@@ -49,14 +49,20 @@ func TestLifecycleStopAndRemovePreserveAcceptedData(t *testing.T) {
 				if operation == "stop" {
 					saved, err = service.Disable(t.Context(), group.ID, mutation)
 				} else {
-					saved, err = service.Delete(t.Context(), group.ID, mutation)
+					saved, err = service.Disable(t.Context(), group.ID, mutation)
+					require.NoError(t, err)
+					beforeDelete := lifecycleReadState(t, db)
+					_, deleteErr := service.Delete(t.Context(), group.ID, lifecycleReadMutation(t, service, saved.Group))
+					require.ErrorContains(t, deleteErr, "WRITE_GROUP_DELETE_BACKLOG")
+					var refusal *WriteGroupDeleteError
+					require.ErrorAs(t, deleteErr, &refusal)
+					counts := refusal.Details.(WriteGroupDeleteBacklog)
+					require.Equal(t, 1, counts.SamplesUnconsumed)
+					require.Equal(t, map[string]int{"pending": 1, "retrying": 1, "blocked": 1, "unknown": 1, "sending": 1}, counts.Outbox)
+					require.Equal(t, beforeDelete, lifecycleReadState(t, db))
 				}
 				require.NoError(t, err)
-				expected := WriteGroupStatusDisabled
-				if operation == "remove" {
-					expected = WriteGroupStatusDeleted
-				}
-				require.Equal(t, expected, saved.Group.Status)
+				require.Equal(t, WriteGroupStatusDisabled, saved.Group.Status)
 				require.Equal(t, "R1", saved.Group.AppliedRevision)
 				require.Equal(t, group.Destination, saved.Group.Destination)
 				require.False(t, mustIntakeEligibility(t, service, group.ID).Accepting)
@@ -70,7 +76,7 @@ func TestLifecycleStopAndRemovePreserveAcceptedData(t *testing.T) {
 				require.Equal(t, group.Destination, historical.Group.Destination)
 				reloaded, err := service.Get(t.Context(), group.ID)
 				require.NoError(t, err)
-				require.Equal(t, saved.Group, reloaded.Group, "the saved disabled group or tombstone remains readable")
+				require.Equal(t, saved.Group, reloaded.Group, "the stopped group remains readable")
 				for _, effect := range []string{"Q1", "Qretry"} {
 					_, err := store.BeginDelivery(t.Context(), effect, "existing-worker", time.Minute)
 					require.NoError(t, err, "stop/remove must not cancel accepted delivery")
@@ -84,26 +90,22 @@ func TestLifecycleStopAndRemovePreserveAcceptedData(t *testing.T) {
 	}
 }
 
-func TestLifecycleFailedRemovalPreservesAllAcceptedData(t *testing.T) {
+func TestLifecycleBacklogRemovalPreservesAllAcceptedData(t *testing.T) {
 	db, service, group := lifecyclePreservationFixture(t)
 	seedLifecycleAcceptedData(t, db, group)
-	cause := &lifecyclePrivateError{}
-	service.WithBacklogOwnershipGuard(writeGroupBacklogGuardFunc(func(ctx context.Context, tx *sql.Tx, _ *WriteGroup) error {
-		var pending int
-		require.NoError(t, tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM wg_delivery_samples WHERE consumed=0`).Scan(&pending))
-		require.Equal(t, 1, pending, "the proof runs inside the same configuration transaction")
-		return cause
-	}))
+	service.WithBacklogOwnershipGuard(writeGroupBacklogGuardFunc(func(context.Context, *sql.Tx, *WriteGroup) error { return nil }))
+	stopped, err := service.Disable(t.Context(), group.ID, lifecycleReadMutation(t, service, group))
+	require.NoError(t, err)
 	before := lifecyclePreservedData(t, db)
 	config := lifecycleReadState(t, db)
-	_, err := service.Delete(t.Context(), group.ID, lifecycleReadMutation(t, service, group))
-	require.ErrorIs(t, err, ErrWriteGroupLifecycleBlocked)
-	var actual *lifecyclePrivateError
-	require.ErrorAs(t, err, &actual)
-	require.Same(t, cause, actual)
+	_, err = service.Delete(t.Context(), group.ID, lifecycleReadMutation(t, service, stopped.Group))
+	require.ErrorContains(t, err, "WRITE_GROUP_DELETE_BACKLOG")
+	var refusal *WriteGroupDeleteError
+	require.ErrorAs(t, err, &refusal)
+	require.Equal(t, 1, refusal.Details.(WriteGroupDeleteBacklog).SamplesUnconsumed)
 	require.Equal(t, before, lifecyclePreservedData(t, db))
 	require.Equal(t, config, lifecycleReadState(t, db))
-	require.True(t, mustIntakeEligibility(t, service, group.ID).Accepting, "failed remove does not implicitly stop or tombstone")
+	require.False(t, mustIntakeEligibility(t, service, group.ID).Accepting, "failed remove retains the explicit stop")
 }
 
 func lifecyclePreservationFixture(t *testing.T) (*sql.DB, *WriteGroupService, *WriteGroup) {

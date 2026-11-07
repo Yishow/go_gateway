@@ -1,5 +1,6 @@
 import { recordingHomeSourcesAPI } from '@/services/recordingHomeSources';
 import { homeSources } from './recording-home-source-fixtures';
+import { homeDeviceAction } from './recording-home-device-actions';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll, afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -52,7 +53,7 @@ async function openEmptyMemory(workspace: typeof bound | typeof unbound) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } }); clients.push(client);
   render(<QueryClientProvider client={client}><DatalinkWorkbenchV2Page presentation="recordings" locatorIntent={{ kind: 'absent' }}
     presentationLocation={{ search: '?view=recordings', hash: '#home' }} navigateTo={vi.fn()} /></QueryClientProvider>);
-  fireEvent.click(await screen.findByTestId('home-device-points-D'));
+  fireEvent.click(await homeDeviceAction());
   const dialog = await screen.findByRole('dialog');
   // A device without ranges opens its new-range setting; the memory view is entered from the title bar.
   await within(dialog).findByTestId('home-range-option-new');

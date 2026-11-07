@@ -24,6 +24,8 @@ it('keeps the real iframe bootstrap and all preview interactions free of persist
   fireEvent.click(screen.getByRole('button', { name: 'Preview confirmation' }));
   fireEvent.click(await screen.findByTestId('group-delete-cancel'));
   fireEvent.click(screen.getByRole('button', { name: 'Preview confirmation' }));
+  expect(await screen.findByTestId('group-delete-confirm-button')).toBeDisabled();
+  fireEvent.click(screen.getByRole('checkbox', { name: 'I understand the recording settings will be permanently deleted.' }));
   fireEvent.click(await screen.findByTestId('group-delete-confirm-button'));
   await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   expect(storage.mock.calls).toEqual([]); expect(remove).not.toHaveBeenCalled(); expect(clear).not.toHaveBeenCalled();

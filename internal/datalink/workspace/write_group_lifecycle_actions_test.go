@@ -44,9 +44,7 @@ func TestRecordingLifecycleActionsClassifySavedState(t *testing.T) {
 				group = lifecycleReadGroup(t, service, group.ID)
 			}
 			if mode == "deleted" {
-				_, err := service.Delete(t.Context(), group.ID, lifecycleReadMutation(t, service, group))
-				require.NoError(t, err)
-				group = lifecycleReadGroup(t, service, group.ID)
+				group = seedLegacyRecordingTombstone(t, db, service, group.ID).Group
 			}
 			inspector := &writeGroupReadinessInspector{}
 			service.WithTableInspector(inspector)
@@ -75,10 +73,11 @@ func TestRecordingLifecycleActionsClassifySavedState(t *testing.T) {
 			case "disabled-unknown":
 				require.Equal(t, WriteGroupLifecycleAction{Action: "remove", ReasonCode: "ownership_unavailable", NextAction: "inspect_ownership"}, remove)
 			case "deleted":
-				for _, action := range view.Actions[:3] {
+				for _, action := range view.Actions[:2] {
 					require.False(t, action.Allowed)
 					require.Equal(t, "recording_removed", action.ReasonCode)
 				}
+				require.Equal(t, WriteGroupLifecycleAction{Action: "remove", Allowed: true}, remove)
 			default:
 				require.Equal(t, WriteGroupLifecycleAction{Action: "remove", Allowed: true}, remove)
 			}

@@ -59,9 +59,10 @@ describe('anomaly summary status projection', () => {
 });
 
 describe('home acquisition anomaly button', () => {
-  it.each(['devices', 'recordings'] as const)('shows the three states next to read points in %s mode', mode => {
+  it.each(['devices', 'recordings'] as const)('shows the three states next to read points when entering from %s mode', mode => {
     renderHost({ anomalies: ready, mode });
-    const scope = mode === 'devices' ? screen.getByTestId('home-management-table') : screen.getByTestId('home-device-summary');
+    if (mode === 'recordings') fireEvent.click(screen.getByRole('button', { name: '設備' }));
+    const scope = screen.getByTestId('home-management-table');
     const mc = anomalyButton(scope, 'MC'), mb = anomalyButton(scope, 'MB'), unknown = anomalyButton(scope, 'NEW');
     expect(mc).toHaveTextContent('採集異常 2');
     expect(mc).toHaveAttribute('data-anomaly-state', 'active');
@@ -160,14 +161,15 @@ describe('acquisition anomaly modal', () => {
   it('closes on Escape and returns focus to the anomaly button', async () => {
     vi.mocked(listDeviceAcquisitionAnomalies).mockResolvedValue({ items: [stale], total: 1, limit: 25, offset: 0 });
     renderHost({ anomalies: ready, mode: 'recordings' });
-    const trigger = anomalyButton(screen.getByTestId('home-device-summary'), 'MC');
+    fireEvent.click(screen.getByRole('button', { name: '設備' }));
+    const trigger = anomalyButton(screen.getByTestId('home-management-table'), 'MC');
     trigger.focus();
     fireEvent.click(trigger);
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByRole('table');
     fireEvent.keyDown(dialog, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    await waitFor(() => expect(document.activeElement).toBe(anomalyButton(screen.getByTestId('home-device-summary'), 'MC')));
+    await waitFor(() => expect(document.activeElement).toBe(anomalyButton(screen.getByTestId('home-management-table'), 'MC')));
   });
 
   it('distinguishes no events from no matches only after a successful read', async () => {

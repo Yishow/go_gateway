@@ -362,7 +362,7 @@ func NewRouter(datalinkServices *DatalinkServices) *gin.Engine {
 					workspaceActivationHandler.WithAudit(datalinkServices.Audit)
 					datalinkGroup.POST("/studio-v2/workspace/activate", workspaceActivationHandler.Activate)
 
-					workspaceDeviceHandler := handlers.NewStudioV2WorkspaceDevicesHandler(datalinkServices.Workspace, datalinkServices.Device, datalinkServices.Runtime)
+					workspaceDeviceHandler := handlers.NewStudioV2WorkspaceDevicesHandler(datalinkServices.Workspace, datalinkServices.Device, datalinkServices.Runtime).WithWriteGroups(datalinkServices.WriteGroups).WithAudit(datalinkServices.Audit)
 					datalinkGroup.GET("/studio-v2/workspace/devices", workspaceDeviceHandler.List)
 					datalinkGroup.POST("/studio-v2/workspace/devices", workspaceDeviceHandler.Create)
 					datalinkGroup.PUT("/studio-v2/workspace/devices/:id", workspaceDeviceHandler.Update)

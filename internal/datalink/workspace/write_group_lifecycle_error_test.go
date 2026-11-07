@@ -110,11 +110,7 @@ func TestLifecycleRemoveKeepsCASAndForeignScopeErrors(t *testing.T) {
 			var actionError *WriteGroupLifecycleActionError
 			require.False(t, errors.As(err, &actionError), "stale request revisions still require reload, not a stop fallback")
 			require.Equal(t, before, lifecycleReadState(t, db))
-			if field == "connector" {
-				require.Equal(t, 1, guardCalls, "existing ownership-before-saved-connector check order is preserved")
-			} else {
-				require.Zero(t, guardCalls)
-			}
+			require.Zero(t, guardCalls, "a stale or foreign request is rejected before ownership proof")
 		})
 	}
 }

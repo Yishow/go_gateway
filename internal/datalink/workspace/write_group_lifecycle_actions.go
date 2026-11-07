@@ -124,7 +124,7 @@ func (s *WriteGroupService) lifecycleActions(ctx context.Context, tx *sql.Tx, gr
 		return actions
 	}
 	if group.Status == WriteGroupStatusDeleted {
-		for i := 0; i < 3; i++ {
+		for i := 0; i < 2; i++ {
 			actions[i].Allowed, actions[i].ReasonCode, actions[i].NextAction = false, "recording_removed", writeGroupNextReviewLifecycle
 		}
 		return actions

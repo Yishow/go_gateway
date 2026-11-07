@@ -78,27 +78,26 @@ describe('recording rows read as source → recording → destination with statu
   });
 });
 
-describe('device rows and summary show protocol and observed availability graphically', () => {
+describe('device rows show protocol and observed availability graphically', () => {
   it('labels persisted setting availability as a setting, never a check mark of live health', () => {
     render(<Host />);
-    const summary = screen.getByTestId('home-device-summary');
-    const item = within(summary).getByText('Boiler PLC').closest('li')!;
-    const badge = item.querySelector('[data-availability-badge="available"]');
-    expect(badge).toHaveTextContent('configAvailability.available'); expect(icon(badge)).toBeTruthy();
-    expect(summary.querySelector('.lucide-circle-check')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
+    const badge = row('Boiler PLC').querySelector('[data-availability-badge="available"]');
+    expect(badge).toHaveTextContent('configAvailability.available'); expect(icon(badge)).toBeTruthy();
     expect(row('Meter').querySelector('[data-availability-badge="unknown"]')).toHaveTextContent('configAvailability.unknown');
     expect(row('Boiler PLC').querySelector('[data-availability-badge="available"]')).toHaveTextContent('configAvailability.available');
     expect(screen.getByTestId('home-management-table').querySelector('.lucide-circle-check')).toBeNull();
     expect(icon(row('Meter').querySelector('[data-protocol]'))).toBeTruthy();
   });
-  it('keeps each summary device in the existing grid cells: icon with name, protocol with setting badge', () => {
+  it('keeps device identity, protocol, setting and live status distinct in the device row', () => {
     render(<Host />);
-    const item = within(screen.getByTestId('home-device-summary')).getByText('Boiler PLC').closest('li')!;
-    const [name, meta, ...rest] = [...item.children];
-    expect(name).toHaveTextContent('Boiler PLC'); expect(icon(name)).toBeTruthy();
-    expect(meta).toHaveTextContent('protocolNames.modbus_tcp'); expect(meta.querySelector('[data-availability-badge]')).toBeTruthy();
-    expect(rest.every(child => child.tagName === 'BUTTON')).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
+    const item = row('Boiler PLC');
+    expect(within(item).getByText('Boiler PLC').tagName).toBe('STRONG');
+    expect(item.querySelector('[data-protocol]')).toHaveTextContent('protocolNames.modbus_tcp');
+    expect(icon(item.querySelector('[data-protocol]'))).toBeTruthy();
+    expect(item.querySelector('[data-availability-badge]')).toHaveTextContent('configAvailability.available');
+    expect(item.querySelector('[data-connection-state]')).toHaveTextContent('deviceStatus.states.unavailable');
   });
   it('mode tabs carry icons without changing their accessible names', () => {
     render(<Host />);

@@ -69,9 +69,10 @@ function mount(strict = false) {
     presentationLocation={{ search: '?view=recordings', hash: '#home' }} navigateTo={vi.fn()} /></QueryClientProvider>;
   render(strict ? <StrictMode>{page}</StrictMode> : page);
 }
+async function openDevicePoints() { fireEvent.click(await screen.findByRole('button', { name: /^(Devices|設備)$/ })); fireEvent.click(within(await screen.findByTestId('home-management-table')).getByRole('button', { name: /^(Read points|讀取點位)$/ })); }
 /** No separate range list: the first saved range opens directly with every range as an inline choice. */
 async function openSettings() {
-  mount(); fireEvent.click(await screen.findByTestId('home-device-points-D'));
+  mount(); await openDevicePoints();
   const dialog = await screen.findByRole('dialog');
   await waitFor(() => expect(within(dialog).getByTestId(`home-range-option-${rules[0].id}`)).toHaveAttribute('aria-pressed', 'true'));
   await within(dialog).findByTestId('rule-prefix-input');
@@ -113,7 +114,7 @@ describe('Home range choices show saved facts and one close', () => {
 
   it('opens the only saved range directly with the memory entry above the setting', async () => {
     arrange([range('A', '40001', 2, 'int16')]);
-    mount(); fireEvent.click(await screen.findByTestId('home-device-points-D'));
+    mount(); await openDevicePoints();
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByTestId('rule-prefix-input')).toHaveValue('A_');
     expect(within(dialog).queryByTestId('home-range-edit-A')).not.toBeInTheDocument();
@@ -123,7 +124,7 @@ describe('Home range choices show saved facts and one close', () => {
 
   it('keeps the memory entry and its return to the single range in Strict Mode', async () => {
     arrange([range('A', '40001', 2, 'int16')]);
-    mount(true); fireEvent.click(await screen.findByTestId('home-device-points-D'));
+    mount(true); await openDevicePoints();
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByTestId('rule-prefix-input');
     fireEvent.click(await within(dialog).findByTestId('home-range-memory'));
@@ -133,7 +134,6 @@ describe('Home range choices show saved facts and one close', () => {
     noWrites();
   });
 });
-
 describe('memory view opens exact cells into the original range flows', () => {
   it('separates areas and shows a float32 value as one item across two registers', async () => {
     const dialog = await openMemory();
@@ -255,7 +255,7 @@ describe('memory view opens exact cells into the original range flows', () => {
 
   it('has complete Traditional Chinese labels', async () => {
     await i18n.changeLanguage('zh-TW');
-    mount(); fireEvent.click(await screen.findByTestId('home-device-points-D'));
+    mount(); await openDevicePoints();
     const dialog = await screen.findByRole('dialog');
     const entry = await within(dialog).findByTestId('home-range-memory');
     expect(entry).toHaveTextContent('記憶體視圖'); fireEvent.click(entry);

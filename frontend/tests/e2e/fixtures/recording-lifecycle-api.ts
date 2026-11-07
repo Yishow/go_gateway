@@ -9,7 +9,8 @@ export interface LifecycleMockReply { status: number; body: unknown; transport?:
 /** mutation counts attempted writes/token creation, including rejected calls; it is not a SQL/DDL success flag. */
 export interface LifecycleMockCall extends LifecycleMockRequest { action: string; mutation: boolean; status: number }
 const readOnlyActions = new Set(['successor-review', 'activation-review', 'activation-readiness', 'operation-status']);
-type Effect = { transport?: 'abort'; delayMs?: number; reject?: boolean };
+type DeleteConflict = { code: string; action: string; details?: unknown };
+type Effect = { transport?: 'abort'; delayMs?: number; reject?: boolean; conflict?: DeleteConflict };
 
 /** Node-side page.route simulator. Unlisted paths/methods and stale/foreign scopes fail closed.
  * The ledger describes MOCK requests, not real SQL/database or runtime evidence.
@@ -20,10 +21,11 @@ export function createRecordingLifecycleMock(scenario: LifecycleScenario = 'appl
   const successor = new LifecycleSuccessorMock(state);
   const ledger: LifecycleMockCall[] = [];
   const effects = new Map<string, Effect>();
+  let sourceDeleted = false;
   let staleLifecycle = false;
   let ordinaryPreviewCount = 0;
   const reject = (code: string, status = 409): never => { throw new MockContractError(code, status); };
-  const group = (id: string) => id === 'G1' ? state.source : id === 'G2' && state.target ? state.target : reject('WRITE_GROUP_NOT_FOUND', 404);
+  const group = (id: string) => id === 'G1' && !sourceDeleted ? state.source : id === 'G2' && state.target && !sourceDeleted ? state.target : reject('WRITE_GROUP_NOT_FOUND', 404);
   function actionOf(request: LifecycleMockRequest, path: string) {
     if (path.endsWith('/successor-review')) return 'successor-review';
     if (path.endsWith('/successor')) return isRecord(request.body) && typeof request.body.action === 'string' ? request.body.action : 'invalid-successor';
@@ -52,7 +54,7 @@ export function createRecordingLifecycleMock(scenario: LifecycleScenario = 'appl
         if (request.body !== undefined || params.size !== 0) return reject('MOCK_INVALID_REQUEST', 400);
         return { workspace_id: 'ws-1', complete: true, operations: [] };
       }
-      if (path === `${FIXTURE_PATH}/write-groups`) return { workspace_id: 'ws-1', workspace_revision: state.workspaceRevision, groups: [state.source, ...(state.target ? [state.target] : [])] };
+      if (path === `${FIXTURE_PATH}/write-groups`) return { workspace_id: 'ws-1', workspace_revision: state.workspaceRevision, groups: sourceDeleted ? [] : [state.source, ...(state.target ? [state.target] : [])] };
       if (path === `${FIXTURE_PATH}/measurements` && (!params.has('device_id') || params.get('device_id') === 'dev-1')) return [];
       if (path === `${FIXTURE_PATH}/database-metadata`) {
         const id = params.get('group_id');
@@ -99,14 +101,20 @@ export function createRecordingLifecycleMock(scenario: LifecycleScenario = 'appl
     const remove = request.method === 'DELETE' && path === `${FIXTURE_PATH}/write-groups/G1`;
     const stop = request.method === 'POST' && path === `${FIXTURE_PATH}/write-groups/G1/disable`;
     if (remove || stop) {
+      if (sourceDeleted) return reject('WRITE_GROUP_NOT_FOUND', 404);
       const body = request.body;
       if (!isRecord(body) || Object.keys(body).some(key => !['workspace_id', 'expected_workspace_revision', 'expected_group_revision', 'expected_connector_revision'].includes(key))) return reject('WRITE_GROUP_INVALID_REQUEST', 400);
       if (!isRecord(body) || body.workspace_id !== 'ws-1' || body.expected_workspace_revision !== state.workspaceRevision ||
         body.expected_group_revision !== state.source.revision || body.expected_connector_revision !== state.source.destination.connector_revision ||
         !fixtureLifecycle(state, state.source).actions.some(item => item.action === (remove ? 'remove' : 'stop') && item.allowed)) return reject('revision_mismatch');
-      state.source.status = remove ? 'deleted' : 'disabled';
-      state.source.revision += remove ? '-REMOVED' : '-STOPPED';
-      state.workspaceRevision += remove ? '-REMOVED' : '-STOPPED';
+      if (remove) {
+        sourceDeleted = true;
+        state.workspaceRevision += '-REMOVED';
+        return { deleted: true, group_id: 'G1', lineage_id: 'L', deleted_generations: state.target ? 2 : 1 };
+      }
+      state.source.status = 'disabled';
+      state.source.revision += '-STOPPED';
+      state.workspaceRevision += '-STOPPED';
       return { workspace_revision: state.workspaceRevision, group: state.source };
     }
     // No ordinary apply/ensure/start/schema-apply, arbitrary writes, or real backend passthrough.
@@ -117,7 +125,7 @@ export function createRecordingLifecycleMock(scenario: LifecycleScenario = 'appl
     snapshot: () => ({ ...structuredClone(state), ordinaryPreviewCount }),
     loseNext: (action: string) => effects.set(action, { ...effects.get(action), transport: 'abort' }),
     delayNext: (action: string, delayMs: number) => effects.set(action, { ...effects.get(action), delayMs }),
-    rejectNext: (action: string) => effects.set(action, { reject: true }),
+    rejectNext: (action: string, conflict?: DeleteConflict) => effects.set(action, conflict ? { conflict } : { reject: true }),
     staleNextLifecycle: () => { staleLifecycle = true; },
     setSchemaOperationStatus: (status: SchemaOperationStatus) => successor.setSchemaOperationStatus(status),
     setActivationReady: (ready: boolean) => successor.setActivationReady(ready),
@@ -128,7 +136,9 @@ export function createRecordingLifecycleMock(scenario: LifecycleScenario = 'appl
       let response: LifecycleMockReply;
       try {
         if (effect?.reject) throw new MockContractError('MOCK_CONTROLLED_UNAVAILABLE', 503);
-        response = { status: 200, body: { success: true, data: structuredClone(dispatch(request, url)) } };
+        response = effect?.conflict && action === 'remove'
+          ? { status: 409, body: { success: false, error: { ...structuredClone(effect.conflict), message: 'Test-only mock rejected request' } } }
+          : { status: 200, body: { success: true, data: structuredClone(dispatch(request, url)) } };
       } catch (error) {
         if (!(error instanceof MockContractError)) throw error;
         response = { status: error.status, body: { success: false, error: { code: error.code, message: 'Test-only mock rejected request', action: 'reload', retryable: false, request_id: 'mock-request' } } };

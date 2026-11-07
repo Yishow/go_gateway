@@ -20,6 +20,8 @@ type StudioV2WorkspaceDevicesHandler struct {
 	workspaceSvc *workspace.Service
 	deviceSvc    *device.Service
 	runtimeSync  deviceRuntimeSyncer
+	writeGroups  *workspace.WriteGroupService
+	auditSvc     workspaceAuditRecorder
 }
 
 type deviceRuntimeProjectionMarker interface {
@@ -200,28 +202,6 @@ func (h *StudioV2WorkspaceDevicesHandler) UpdateAvailability(c *gin.Context) {
 		apiResponseSuccessKey: true,
 		apiResponseDataKey:    mapStudioV2WorkspaceDeviceResponse(savedDevice, "", ""),
 	})
-}
-
-func (h *StudioV2WorkspaceDevicesHandler) Delete(c *gin.Context) {
-	if !h.requireWorkspaceDevice(c) {
-		return
-	}
-
-	deviceID := c.Param("id")
-	if _, err := h.workspaceSvc.DetachDevice(c.Request.Context(), deviceID); err != nil {
-		renderStudioV2WorkspaceDeviceError(c, err)
-		return
-	}
-	if err := h.deviceSvc.Delete(c.Request.Context(), deviceID); err != nil {
-		if _, rollbackErr := h.workspaceSvc.AttachDevice(c.Request.Context(), deviceID); rollbackErr != nil {
-			renderStudioV2WorkspaceDeviceError(c, fmt.Errorf("delete workspace device failed and rollback failed: delete=%w rollback=%w", err, rollbackErr))
-			return
-		}
-		renderStudioV2WorkspaceDeviceError(c, err)
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{apiResponseSuccessKey: true})
 }
 
 func (h *StudioV2WorkspaceDevicesHandler) UpdateOrder(c *gin.Context) {

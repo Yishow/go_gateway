@@ -1,8 +1,9 @@
 import { watchHomeReturnFocus } from './recordingHomeReturnFocus';
 import { eligibleFocusTarget } from '@/utils/returnFocus';
-import { RecordingHomeResultFacts } from './RecordingHomeResultFacts';
+import { RecordingHomeRecordRow } from './RecordingHomeRecordRow';
 import type { recordingHomeResultSummary } from './recordingHomeResultSummary';
 import { useLayoutEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WriteGroup, WriteGroupStatus } from '../../../../types/studioV2WriteGroup';
 import type { RecordingReadonly } from '../state/recordingWorkflowView';
@@ -11,9 +12,11 @@ import { recordingCollection, deviceCollection, initialCollectionState, type Hom
 import type { HomePresentation } from './recordingHomePresentation';
 import { AcquisitionAnomalyButton, type AnomalySummaryStatus } from './AcquisitionAnomalyButton';
 import { AcquisitionAnomalyDialog } from './AcquisitionAnomalyDialog';
-import { ArrowRight, Cable, Cpu, Database, Rows3, TriangleAlert } from 'lucide-react';
-import { DeviceAvailabilityBadge, RecordingStatusBadge } from './RecordingHomeBadges';
+import { Cable, Cpu, Rows3 } from 'lucide-react';
+import { DeviceAvailabilityBadge } from './RecordingHomeBadges';
 import { RecordingHomeStatusDistribution } from './RecordingHomeStatusDistribution';
+import { DeviceConnectionBadge } from './RecordingHomeDeviceStrip';
+import type { DeviceConnectionObservation } from '../../../../types/deviceConnection';
 
 export interface RecordingHomeCollectionProps {
   groups: readonly RecordingReadonly<WriteGroup>[]; devices: readonly HomeDeviceSummary[]; state: RecordingCollectionState;
@@ -28,10 +31,13 @@ export interface RecordingHomeCollectionProps {
   anomalySummary?: AnomalySummaryStatus;
   /** Called after the anomaly modal closes so the counts can be re-read. */
   onAnomaliesClosed?: () => void;
+  connectionStates?: ReadonlyMap<string, DeviceConnectionObservation>;
+  renderDeviceActions?: (device: HomeDeviceSummary) => ReactNode;
+  onDelete?: (group: RecordingReadonly<WriteGroup>) => void;
   onChange: (state: RecordingCollectionState) => void; onOpen: (id: string) => void; onOpenDevice: (id: string, kind: 'connection' | 'points') => void;
   onRemember: (scrollTop: number, focusId: string | null, page: number) => void;
 }
-export function RecordingHomeCollection({ groups, devices, state, guidance, summaries, pendingDevices = [], observedIds, filterObservedIds = observedIds, unverifiedObserved, onRecheck, sourcesAvailable, observedSourcesAvailable = sourcesAvailable, presentationReady = true, returnLayoutPending = false, restored, anomalySummary, onAnomaliesClosed, onChange, onOpen, onOpenDevice, onRemember }: RecordingHomeCollectionProps) {
+export function RecordingHomeCollection({ groups, devices, state, guidance, summaries, pendingDevices = [], observedIds, filterObservedIds = observedIds, unverifiedObserved, onRecheck, sourcesAvailable, observedSourcesAvailable = sourcesAvailable, presentationReady = true, returnLayoutPending = false, restored, anomalySummary, onAnomaliesClosed, connectionStates, renderDeviceActions, onChange, onOpen, onOpenDevice, onRemember, onDelete }: RecordingHomeCollectionProps) {
   const { t } = useTranslation('recording-home');
   const records = recordingCollection(groups, devices, state, new Set(filterObservedIds)), devicePage = deviceCollection(devices, state);
   const current = state.mode === 'devices' ? devicePage : records;
@@ -109,22 +115,17 @@ export function RecordingHomeCollection({ groups, devices, state, guidance, summ
         <table data-testid="home-management-table" data-mode={state.mode}>
           <caption className="sr-only">{t(state.mode === 'devices' ? 'manageDevices' : 'saved')}</caption>
           <thead><tr><th scope="col">{t('name')}</th><th scope="col">{t(state.mode === 'devices' ? 'protocol' : 'savedStatus')}</th>
-            {state.mode === 'devices' ? <th scope="col">{t('availability')}</th> : <><th scope="col">{t('recordSources')}</th><th scope="col">{t('destinationFilter')}</th><th scope="col">{t('recordWrites')}</th></>}<th scope="col">{t('actions')}</th></tr></thead>
+            {state.mode === 'devices' ? <><th scope="col">{t('availability')}</th><th scope="col">{t('deviceStatus.column')}</th></> : <><th scope="col">{t('recordSources')}</th><th scope="col">{t('destinationFilter')}</th><th scope="col">{t('recordWrites')}</th></>}<th scope="col">{t('actions')}</th></tr></thead>
           <tbody>{state.mode === 'devices' ? devicePage.rows.map(device => <tr key={device.id}>
             <td><strong>{device.name}</strong></td>
-            <td><span className="gw-home-chip" data-protocol={device.protocol}><Cable aria-hidden="true" size={14} />{t(`protocolNames.${device.protocol}`, { defaultValue: device.protocol })}</span></td><td><DeviceAvailabilityBadge availability={device.availability} /></td><td className="gw-row-actions">
+            <td><span className="gw-home-chip" data-protocol={device.protocol}><Cable aria-hidden="true" size={14} />{t(`protocolNames.${device.protocol}`, { defaultValue: device.protocol })}</span></td><td><DeviceAvailabilityBadge availability={device.availability} /></td><td><DeviceConnectionBadge state={connectionStates?.get(device.id)?.state ?? 'unavailable'} /></td><td className="gw-row-actions">
               <button type="button" data-home-focus={`device-${device.id}`} onClick={() => { remember(`device-${device.id}`); onOpenDevice(device.id, 'connection'); }}>{t('deviceConnection')}</button>
               <button type="button" onClick={() => { remember(`device-${device.id}`); onOpenDevice(device.id, 'points'); }}>{t('devicePoints')}</button>
-              <AcquisitionAnomalyButton deviceId={device.id} status={anomalySummary} onOpen={() => setAnomalyDevice({ id: device.id, name: device.name })} /></td>
-          </tr>) : records.rows.map(group => <tr key={group.id}>
-            <td><strong>{group.name}</strong></td>
-            <td><RecordingStatusBadge status={group.status} />{guidance.attentionItems.some(item => item.id === group.id && item.reason !== 'evidence_unavailable') && <p className="gw-observed-issue"><TriangleAlert aria-hidden="true" size={14} />{t('observedAttentionShort')}</p>}</td>
-            <td data-label={t('recordSources')}><span className="gw-home-flow" data-flow="source"><Cpu aria-hidden="true" size={14} /><span>{[...new Set(group.members.map(member => member.device_id))].map(id => devices.find(device => device.id === id)?.name ?? id).join(' / ') || t('unknown')}</span></span><p>{t('recordPointCount', { count: group.members.length })}</p><p className="gw-source-state">{t(`result.current.${summaries?.[group.id]?.current === 'source_attention' ? 'source_attention' : 'unknown'}`)}</p></td>
-            <td data-label={t('destinationFilter')}><span className="gw-home-flow" data-flow="destination"><ArrowRight aria-hidden="true" size={14} className="gw-home-flow-arrow" /><Database aria-hidden="true" size={14} /><strong className="gw-destination-name" title={group.destination.table_name}>{group.destination.storage_strategy === 'managed' ? t('managedTable') : group.destination.table_name || t('unknown')}</strong></span>
-              <p className="gw-destination-name">{(group.destination.database || '').split(/[\\/]/).filter(Boolean).at(-1) || t('unknown')}</p>
-              <details className="gw-destination-identity"><summary>{t('destinationIdentity')}</summary><dl><dt>{t('destinationFilter')}</dt><dd>{group.destination.database || t('unknown')}</dd><dt>{t('technicalTable')}</dt><dd>{[group.destination.table_schema, group.destination.table_name].filter(Boolean).join('.')}</dd><dt>{t('product.connector')}</dt><dd>{group.destination.connector_id}</dd></dl></details></td>
-            <td data-label={t('recordWrites')}>{summaries?.[group.id] ? <RecordingHomeResultFacts showSourceState={false} id={group.id} name={group.name} summary={summaries[group.id]} /> : t('statusUnknown')}</td><td><button type="button" data-home-focus={`record-${group.id}`} onClick={() => { remember(`record-${group.id}`); onOpen(group.id); }}>{t('openRecord')}</button></td>
-          </tr>)}</tbody>
+              <AcquisitionAnomalyButton deviceId={device.id} status={anomalySummary} onOpen={() => setAnomalyDevice({ id: device.id, name: device.name })} />{renderDeviceActions?.(device)}</td>
+          </tr>) : records.rows.map(group => <RecordingHomeRecordRow key={group.id} group={group} devices={devices} summary={summaries?.[group.id]}
+            attention={guidance.attentionItems.some(item => item.id === group.id && item.reason !== 'evidence_unavailable')}
+            evidence={guidance.recordingItems.find(item => item.id === group.id)} onDelete={onDelete} onRecheck={onRecheck}
+            onOpen={() => { remember(`record-${group.id}`); onOpen(group.id); }} />)}</tbody>
         </table>}
     </div>
     <footer className="gw-pagination"><div className="gw-pagination-summary"><span role="status" data-testid="home-page-status">{t('pageOf', { page: current.page, pages: current.pageCount, count: current.filteredCount })}</span>
@@ -138,10 +139,6 @@ export function RecordingHomeCollection({ groups, devices, state, guidance, summ
       <button type="button" disabled={current.page <= 1} onClick={() => onChange({ ...state, page: current.page - 1 })}>{t('previous')}</button>
       <button type="button" disabled={current.page >= current.pageCount} onClick={() => onChange({ ...state, page: current.page + 1 })}>{t('next')}</button>
     </div></footer>
-    {state.mode === 'recordings' && <aside className="gw-summary" aria-label={t('deviceSummary')}>
-      <h2 className="text-lg font-semibold">{t('deviceSummary')}</h2>
-      <ul data-testid="home-device-summary">{devicePage.summary.map(device => <li key={device.id}><span className="gw-home-device-name"><Cpu aria-hidden="true" size={16} className="gw-home-device-icon" /><strong>{device.name}</strong></span><span className="gw-home-device-meta"><span>{t(`protocolNames.${device.protocol}`, { defaultValue: device.protocol })}</span><DeviceAvailabilityBadge availability={device.availability} /></span><button type="button" data-home-focus={`summary-connection-${device.id}`} onClick={() => { remember(`summary-connection-${device.id}`); onOpenDevice(device.id, 'connection'); }}>{t('deviceConnection')}</button><button type="button" data-testid={`home-device-points-${device.id}`} data-home-focus={`summary-device-${device.id}`} onClick={() => { remember(`summary-device-${device.id}`); onOpenDevice(device.id, 'points'); }}>{t('devicePoints')}</button><AcquisitionAnomalyButton deviceId={device.id} status={anomalySummary} onOpen={() => setAnomalyDevice({ id: device.id, name: device.name })} /></li>)}</ul>
-    </aside>}
     {anomalyDevice && <AcquisitionAnomalyDialog device={anomalyDevice} onClose={() => { setAnomalyDevice(null); onAnomaliesClosed?.(); }} />}
   </section>;
 }

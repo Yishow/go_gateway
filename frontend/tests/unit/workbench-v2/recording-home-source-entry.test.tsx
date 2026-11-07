@@ -1,5 +1,6 @@
 import { recordingHomeSourcesAPI } from '@/services/recordingHomeSources';
 import { homeSources } from './recording-home-source-fixtures';
+import { homeDeviceAction } from './recording-home-device-actions';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -52,7 +53,7 @@ function mount() {
   return { ...view, navigate, client };
 }
 async function openRange() {
-  fireEvent.click(await screen.findByTestId('home-device-points-D'));
+  fireEvent.click(await homeDeviceAction());
   return screen.findByRole('dialog');
 }
 function noOtherWrites() {
@@ -72,8 +73,7 @@ describe('direct source entry and one shared form presentation', () => {
       return { data: { success: true, data: { ...read.workspace, locator_entry: read.entry } } };
     });
     mount();
-    const points = await screen.findByTestId('home-device-points-D');
-    const trigger = kind === 'points' ? points : within(screen.getByTestId('home-device-summary')).getByRole('button', { name: 'Connection' });
+    const trigger = await homeDeviceAction('D', kind);
     fireEvent.click(trigger);
     const dialog = await screen.findByRole('dialog');
     await waitFor(() => expect(started).toBe(true));
@@ -99,7 +99,7 @@ describe('direct source entry and one shared form presentation', () => {
       return { data: { success: true, data: { ...read.workspace, locator_entry: read.entry } } };
     });
     mount();
-    const trigger = await screen.findByTestId('home-device-points-D');
+    const trigger = await homeDeviceAction();
     let listStarted = false;
     vi.mocked(studioV2RulesAPI.list).mockImplementationOnce(() => { listStarted = true; return listGate; });
     fireEvent.click(trigger);
@@ -124,7 +124,7 @@ describe('direct source entry and one shared form presentation', () => {
   });
   it('still shows a real locator failure and allows closing the source dialog', async () => {
     mount();
-    const trigger = await screen.findByTestId('home-device-points-D');
+    const trigger = await homeDeviceAction();
     vi.mocked(studioV2DatalinkApi.get).mockRejectedValueOnce(new Error('fixture unavailable'));
     fireEvent.click(trigger);
     const dialog = await screen.findByRole('dialog');
@@ -136,9 +136,9 @@ describe('direct source entry and one shared form presentation', () => {
   });
   it('shows a real connection locator failure and allows closing', async () => {
     mount();
-    await screen.findByTestId('home-device-points-D');
+    const trigger = await homeDeviceAction('D', 'connection');
     vi.mocked(studioV2DatalinkApi.get).mockRejectedValueOnce(new Error('fixture unavailable'));
-    fireEvent.click(within(screen.getByTestId('home-device-summary')).getByRole('button', { name: 'Connection' }));
+    fireEvent.click(trigger);
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByTestId('studio-locator-notice')).toHaveAttribute('role', 'alert');
     fireEvent.click(within(dialog).getByTestId('home-source-close'));

@@ -92,6 +92,7 @@ func wireGatewayServicesContext(ctx context.Context, db *sql.DB, connMgr *connec
 	writeGroupsSvc := workspace.NewWriteGroupService(workspaceSvc, workspace.NewSQLWriteGroupRepository(db), cutoverObservation).
 		WithBacklogOwnershipGuard(grouppipeline.BacklogGuard{})
 	auditSvc := audit.NewService(audit.NewSQLRepository(db))
+	writeGroupsSvc.WithAudit(auditSvc)
 	dbTargetConnectorRepo := dbtarget.NewSQLConnectorRepository(db)
 	dbTargetMappingRepo := dbtarget.NewSQLTargetMappingRepository(db)
 	dbTargetConnectorSvc := dbtarget.NewConnectorService(dbTargetConnectorRepo, dbTargetMappingRepo)

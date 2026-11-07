@@ -1,16 +1,17 @@
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { WriteGroup, WriteGroupStatus } from '../../../../types/studioV2WriteGroup';
+import type { WriteGroup } from '../../../../types/studioV2WriteGroup';
 import type { RecordingReadonly } from '../state/recordingWorkflowView';
 import { RecordingStatusBadge } from './RecordingHomeBadges';
+import { countRecordingHomeStatuses, recordingHomeStatuses } from './recordingHomeStatusCounts';
 
-const order: readonly WriteGroupStatus[] = ['draft', 'ready', 'running', 'disabled', 'deleted'];
 /** Saved-status counts over every loaded saved record (never the filtered page). It counts saved
  * configuration only, never runtime, delivery or SQL outcomes. */
 export function RecordingHomeStatusDistribution({ groups }: { groups: readonly RecordingReadonly<WriteGroup>[] }) {
   const { t } = useTranslation('recording-home');
   const scopeId = useId();
-  const counts = order.map(status => [status, groups.filter(group => group.status === status).length] as const).filter(([, count]) => count > 0);
+  const totals = countRecordingHomeStatuses(groups);
+  const counts = recordingHomeStatuses.map(status => [status, totals[status]] as const).filter(([, count]) => count > 0);
   if (!counts.length) return null;
   return <div className="gw-home-status-distribution">
     {/* Decorative proportion of saved statuses only; the counts below carry the meaning. */}

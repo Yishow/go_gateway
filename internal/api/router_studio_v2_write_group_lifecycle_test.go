@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"testing"
 
+	"go-gateway/internal/testutil/legacyrecording"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -96,15 +98,16 @@ func TestWriteGroupLifecycleStaleAndRemovedConnectorKeepStop(t *testing.T) {
 func TestWriteGroupLifecycleRemovedAndUnavailableService(t *testing.T) {
 	f := newManagedGroupFixture(t, "sqlite")
 	id := f.group["id"].(string)
-	removed := performJSONRequest(t, f.router, http.MethodDelete, writeGroupsPath+"/"+id, groupEditRequest(f.writeGroupRouterFixture, f.data, f.group))
-	require.Equal(t, http.StatusOK, removed.Code, removed.Body.String())
+	require.NoError(t, legacyrecording.Tombstone(t.Context(), f.db, id))
 	data := lifecycleAPIRead(t, f.writeGroupRouterFixture, id)
 	require.Equal(t, "deleted", data["status"])
 	actions := lifecycleAPIActions(t, data)
-	for _, name := range []string{"edit", "stop", "remove"} {
+	for _, name := range []string{"edit", "stop"} {
 		require.Equal(t, false, actions[name]["allowed"])
 		require.Equal(t, "recording_removed", actions[name]["reason_code"])
 	}
+	require.Equal(t, true, actions["remove"]["allowed"])
+	require.Empty(t, actions["remove"]["reason_code"])
 	require.Equal(t, false, actions["recreate"]["allowed"])
 	unavailable := performJSONRequest(t, NewRouter(&DatalinkServices{Workspace: f.workspace}), http.MethodGet, writeGroupsPath+"/"+id+"/lifecycle", nil)
 	require.Equal(t, http.StatusServiceUnavailable, unavailable.Code, unavailable.Body.String())

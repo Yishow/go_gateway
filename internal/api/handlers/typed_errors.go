@@ -33,6 +33,7 @@ type TypedAPIErrorEnvelope struct {
 	Retryable         bool   `json:"retryable"`
 	RequestID         string `json:"request_id"`
 	Action            string `json:"action,omitempty"`
+	Details           any    `json:"details,omitempty" swaggertype:"object"`
 	WorkspaceRevision string `json:"workspace_revision,omitempty"`
 	SettingsRevision  string `json:"settings_revision,omitempty"`
 	DirtyState        string `json:"dirty_state,omitempty"`

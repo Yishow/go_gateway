@@ -38,7 +38,9 @@ The system SHALL expose revision-scoped lifecycle actions with `action`, `allowe
 ---
 ### Requirement: Stop and remove preserve accepted data
 
-Stopping SHALL prevent new intake while preserving immutable versions, accepted samples, outbox rows, destination identity, and receipts. Removing SHALL retain a readable tombstone and operation history and SHALL NOT delete destination tables or recorded SQL rows. Removal of an applied group MUST prove backlog ownership within the configuration transaction. Stop SHALL remain available using the group's saved connector revision after a live connector is edited or removed.
+Stopping SHALL prevent new intake while preserving immutable versions, accepted samples, outbox rows, destination identity, and receipts. Stop SHALL remain available using the group's saved connector revision after a live connector is edited or removed.
+
+Removing a recording SHALL permanently delete, within one configuration-database transaction, every internal row keyed by any generation of the recording's lineage: group, versions, members, revision ends, canonical and profile keys, storage scopes and events, cutovers, ownership fences, migration maps, partition-maintenance rows, generations, the lineage, runtime versions, delivery samples, checkpoints, buckets, outbox rows and receipts, and recording-plan or measurement rows owned only by that recording. Rows whose key is shared with other recordings (storage scopes and partition-maintenance rows keyed by workspace, connector, database, schema, mode and layout) SHALL be deleted only when no surviving recording's current, historical or runtime version references them. Rows with no provable single-recording owner (measurement definitions, recording plans, the delivery journal) and terminal workspace-level `recording_start` ledger entries SHALL be retained, and their readers SHALL tolerate a missing group without re-enabling it. Removal MUST NOT connect to the destination database and MUST NOT delete or alter destination tables or recorded SQL rows. Removal SHALL be refused without any change when intake is active (`WRITE_GROUP_DELETE_ACTIVE`), when any generation has an unconsumed sample or an outbox row whose state is neither `sql_committed` nor `operator_skipped` (`WRITE_GROUP_DELETE_BACKLOG`, with per-category counts), when a reserved successor, pending cutover, unfinished cross-recording handoff, an unfinished or partially executed schema or test-write operation, an unresolved test-write cleanup, or a non-terminal `recording_start` operation covering the lineage exists (`WRITE_GROUP_DELETE_OPERATION_PENDING`), when the requested group is a predecessor of a non-deleted later generation or a finished cutover, fence or handoff of the lineage is still ownership evidence for a surviving recording (`WRITE_GROUP_DELETE_HAS_SUCCESSOR`, listing up to 20 referencing recordings and their total), or when expected revisions are stale. A previously tombstoned recording SHALL be permanently deletable through the same operation. A successful removal SHALL record a `write_group_deleted` audit entry containing only the recording name, group and lineage identifiers and generation count (a legacy single-generation recording without a lineage reports an empty lineage identifier and one generation), and SHALL release the canonical key so a new recording for the same device and role can be created through the ordinary flow.
 
 #### Scenario: Stop with queued deliveries
 
@@ -51,6 +53,40 @@ Stopping SHALL prevent new intake while preserving immutable versions, accepted 
 - **WHEN** stop commits for G1
 - **THEN** new intake is rejected and Q1 remains eligible for delivery to D1
 
+#### Scenario: Remove a drained recording
+
+- **WHEN** an operator removes a stopped recording whose samples are consumed and whose outbox rows are all `sql_committed` or `operator_skipped`
+- **THEN** no internal row keyed by any of its group identifiers remains, the destination table and its rows are unchanged, and a `write_group_deleted` audit entry exists
+
+##### Example: Remove a drained two-generation recording
+
+- **GIVEN** lineage L1 has tombstoned G1 (generation 1) and stopped head G2 (generation 2), destination table `public.gw_long_a` with 1200 rows, all outbox rows `sql_committed`
+- **WHEN** remove G2 is confirmed with current revisions
+- **THEN** the response reports 2 deleted generations, no internal table contains G1, G2 or L1, and `public.gw_long_a` still holds 1200 rows
+
+#### Scenario: Removal refused by pending delivery
+
+- **WHEN** any generation has unconsumed samples or undelivered outbox rows
+- **THEN** removal returns `WRITE_GROUP_DELETE_BACKLOG` with separate counts per category and changes nothing
+
+##### Example: pending categories
+
+| Pending evidence | Result |
+| --- | --- |
+| 3 samples with consumed = 0 | 409 `WRITE_GROUP_DELETE_BACKLOG`, samples_unconsumed = 3 |
+| 1 outbox row in `retrying`, 1 in `unknown` | 409 `WRITE_GROUP_DELETE_BACKLOG`, retrying = 1, unknown = 1 |
+| only `sql_committed` and `operator_skipped` rows | removal succeeds |
+
+#### Scenario: Removal refused while recording
+
+- **WHEN** removal is requested for a group whose intake is active
+- **THEN** it returns `WRITE_GROUP_DELETE_ACTIVE` with action `stop_first` and changes nothing
+
+#### Scenario: Purge an existing tombstone
+
+- **WHEN** removal is requested for an already tombstoned recording with no backlog and no later generation
+- **THEN** it is permanently deleted instead of returning a lifecycle-blocked error
+
 #### Scenario: Ownership proof fails during removal
 
 - **WHEN** an accepted sample or undelivered row cannot be resolved to its immutable owner
@@ -62,8 +98,255 @@ Stopping SHALL prevent new intake while preserving immutable versions, accepted 
 - **WHEN** remove G1 is requested
 - **THEN** removal fails and G1 plus Q1 remain unchanged
 
+#### Scenario: Removal refused by another recording's ownership evidence
+
+- **WHEN** a finished cutover or handoff of the recording is still read by a surviving recording's ownership proof
+- **THEN** removal returns `WRITE_GROUP_DELETE_HAS_SUCCESSOR` with action `open_recording` and the referencing recordings, and changes nothing
+
+##### Example: cross-lineage cutover evidence
+
+- **GIVEN** recording A's lineage handed over to surviving recording B through a finished cutover whose proof reads A's versions
+- **WHEN** removal of A is requested
+- **THEN** the response is 409 `WRITE_GROUP_DELETE_HAS_SUCCESSOR` with `referenced_by` naming B and total 1, and A's group, versions and cutover rows are unchanged
+
+#### Scenario: Shared destination scope survives removal
+
+- **WHEN** a removed recording's storage scope key is still referenced by a surviving recording's version
+- **THEN** that scope and its partition-maintenance rows remain and every row owned only by the removed lineage is deleted
+
+#### Scenario: Schema operation state decides removal
+
+- **WHEN** removal is requested for a recording with a related schema or test-write operation
+- **THEN** a failed operation with zero executed statements and no pending cleanup is deleted with the recording, and any pending, running, partial, unknown, partially executed or cleanup-pending operation refuses removal with `WRITE_GROUP_DELETE_OPERATION_PENDING`
+
+##### Example: schema operation states
+
+| Operation evidence | Result |
+| --- | --- |
+| failed, executed_statements = 0, no cleanup pending | removal succeeds |
+| failed, executed_statements = 2 | 409 `WRITE_GROUP_DELETE_OPERATION_PENDING` |
+| running | 409 `WRITE_GROUP_DELETE_OPERATION_PENDING` |
+| succeeded test write with cleanup not completed | 409 `WRITE_GROUP_DELETE_OPERATION_PENDING` |
+
+#### Scenario: Recording start ledger after removal
+
+- **WHEN** a recording whose terminal `recording_start` ledger entry names it is removed
+- **THEN** the ledger entry is retained, operation reads still return its historical result, replaying a succeeded start does not re-enable the recording, and replaying a failed start is refused because the group no longer exists
+
+#### Scenario: Legacy recording without lineage
+
+- **WHEN** a legacy single-generation recording without a lineage is removed
+- **THEN** the success data reports `lineage_id` as an empty string and `deleted_generations` as 1
 
 
+<!-- @trace
+source: improve-recording-home-status-and-delete
+updated: 2026-11-08
+code:
+  - internal/datalink/dbtarget/writer_snapshot.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupLifecycleBar.tsx
+  - frontend/studio-v2-diagnostic.cjs
+  - internal/datalink/workspace/write_group_service.go
+  - internal/datalink/runtimeview/contract.go
+  - docs/validation/memory-views-20261106/skill/SKILL.md
+  - frontend/src/services/runtimeLogLegacyProjection.ts
+  - internal/datalink/dbtarget/writer_workers.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeResultFacts.tsx
+  - frontend/src/i18n/locales/zh-TW/recording-home-status.json
+  - internal/datalink/workspace/write_group_permanent_delete_audit.go
+  - docs/testing.md
+  - frontend/src/features/datalink/workbench-v2/recording-home/DeviceDeleteDialog.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/RecordingLifecycleHistory.tsx
+  - internal/datalink/workspace/device_recording_delete.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeStatusSummary.tsx
+  - internal/datalink/workspace/write_group_permanent_delete.go
+  - internal/diagnostics/projection.go
+  - internal/api/router.go
+  - frontend/src/services/runtimeLogDomainProjection.ts
+  - frontend/src/features/datalink/workbench-v2/recording-home/recording-delete-dialog.css
+  - internal/api/handlers/studio_v2_workspace_devices_handler.go
+  - internal/datalink/modbusshare/service_projection.go
+  - docs/technical/studio-surface-inventory/backend-api-registry.md
+  - frontend/src/i18n/locales/zh-TW/runtime-logs.json
+  - internal/api/router_studio_v2_write_group_routes.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/recordingHomeStatusCounts.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/SavedRecordingActions.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_purge.go
+  - internal/diagnostics/domain_event.go
+  - docs/swagger/swagger.json
+  - docs/swagger/docs.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/recordingHomeLifecycleMatches.ts
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeWriteStages.tsx
+  - internal/api/handlers/typed_errors.go
+  - internal/datalink/device/workspace_delete.go
+  - internal/datalink/groupdelivery/quota.go
+  - frontend/src/services/runtimeRuleEvidenceParser.ts
+  - AGENTS.md
+  - docs/technical/studio-surface-inventory/studio-v2-runtime.md
+  - internal/datalink/workspace/write_group_lifecycle_actions.go
+  - frontend/src/types/runtimeRuleEvidence.ts
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeStatusDistribution.tsx
+  - internal/api/handlers/studio_v2_workspace_write_groups_handler.go
+  - internal/datalink/workspace/write_group_permanent_delete_recording_start.go
+  - frontend/src/i18n/locales/en/recording-home.json
+  - frontend/src/services/studioV2WorkspaceWriteGroups.ts
+  - internal/datalink/workspace/write_group_permanent_delete_shared.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler_delete.go
+  - internal/datalink/audit/types.go
+  - internal/datalink/dbtarget/writer_failure_log.go
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceDevices.ts
+  - frontend/src/services/studioV2WorkspaceDelete.ts
+  - internal/api/handlers/studio_v2_workspace_write_groups_handler_mutate.go
+  - internal/datalink/dbtarget/writer_flush.go
+  - frontend/src/hooks/datalink/useStudioV2WriteGroups.ts
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeRoute.tsx
+  - internal/testutil/legacyrecording/tombstone.go
+  - internal/api/handlers/studio_v2_workspace_write_groups_handler_delete.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/deviceConnectionState.ts
+  - frontend/src/i18n/locales/en/recording-home-status.json
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeRowActions.tsx
+  - frontend/src/i18n/locales/zh-TW/recording-home-delete.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupDeliveryStrip.tsx
+  - frontend/src/i18n/locales/zh-TW/recording-home.json
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHome.tsx
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeDestinationCell.tsx
+  - frontend/src/features/datalink/workbench-v2/recording-home/recordingHomeWriteStageMapping.ts
+  - internal/datalink/dbtarget/writer_group_flush.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/recordingHomeRows.css
+  - frontend/src/services/studioV2WorkspaceDevices.ts
+  - internal/datalink/dbtarget/writer_retry.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeUnconfirmed.tsx
+  - frontend/src/features/runtime-logs/RuntimeLogLegacyEvent.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_operations.go
+  - internal/datalink/workspace/write_group_permanent_delete_storage.go
+  - frontend/src/i18n/config.ts
+  - internal/datalink/workspace/write_group_permanent_delete_scope.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingDeleteDialog.tsx
+  - frontend/src/features/datalink/workbench-v2/recording-home/recordingHomeStatus.css
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeDeviceActions.tsx
+  - frontend/src/features/datalink/workbench-v2/recording-home/useRecordingHomeDeviceStatus.ts
+  - docs/swagger/swagger.yaml
+  - frontend/src/i18n/locales/en/recording-home-rows.json
+  - frontend/src/types/studioV2Delete.ts
+  - frontend/src/types/deviceConnection.ts
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeRecordRow.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_guard.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeDeviceStrip.tsx
+  - frontend/src/i18n/locales/zh-TW/recording-home-rows.json
+  - frontend/src/i18n/locales/zh-TW/runtime-dashboard.json
+  - frontend/src/dev/previewI18n.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/SavedRecordingRemoveDialog.tsx
+  - frontend/src/i18n/locales/en/runtime-dashboard.json
+  - docs/technical/studio-surface-inventory/changelog.sqlite
+  - docs/validation/memory-views-20261106/skill/references/lessons.md
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingDeleteDialogController.tsx
+  - internal/datalink/grouppipeline/backlog_guard.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeCollection.tsx
+  - frontend/src/i18n/locales/en/recording-home-delete.json
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingDeleteDialogError.tsx
+  - frontend/src/i18n/locales/en/runtime-logs.json
+tests:
+  - internal/api/router_studio_v2_write_group_lifecycle_test.go
+  - internal/datalink/workspace/write_group_permanent_delete_delivery_fixture_test.go
+  - internal/api/router_studio_v2_successor_first_start_fixture_test.go
+  - frontend/tests/unit/runtime-logs/legacy-event-fixtures.ts
+  - frontend/tests/unit/workbench-v2/saved-recording-actions.test.tsx
+  - internal/api/handlers/studio_v2_workspace_write_groups_handler_delete_test.go
+  - frontend/tests/unit/workbench-v2/groupDeliveryStrip.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-accessibility.test.tsx
+  - internal/api/router_studio_v2_locator_entry_test.go
+  - frontend/tests/unit/dev/recording-style-bootstrap.test.tsx
+  - internal/datalink/workspace/recording_start_disabled_test.go
+  - internal/datalink/dbtarget/writer_failure_revision_test.go
+  - cmd/test_ui/group_pipeline_outage_delete_test.go
+  - frontend/tests/unit/workbench-v2/recording-editor-range-mc-prepare.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-memory-scope.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-guided-saved-card.test.tsx
+  - internal/datalink/workspace/write_group_lifecycle_test.go
+  - internal/datalink/workspace/write_group_mixed_safety_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-route.test.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_storage_test.go
+  - frontend/tests/unit/workbench-v2/device-connection-state.test.ts
+  - frontend/tests/unit/workbench-v2/recording-home-status-counts.test.ts
+  - frontend/tests/unit/workbench-v2/recording-home-shell.test.tsx
+  - frontend/tests/unit/workbench-v2/studio-locator-group-focus.test.tsx
+  - cmd/test_ui/gateway_logging.go
+  - internal/api/router_studio_v2_write_group_boundaries_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-source-modal.test.tsx
+  - internal/datalink/grouppipeline/backlog_guard_lifecycle_test.go
+  - internal/datalink/workspace/write_group_circuit_profile_rules_test.go
+  - frontend/tests/unit/workbench-v2/recording-delete-dialog.test.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_test.go
+  - internal/api/router_studio_v2_write_group_action_errors_test.go
+  - frontend/tests/unit/runtime-logs/runtimeLogLegacyProjection.test.ts
+  - cmd/test_ui/delivery_events_unavailable_test.go
+  - frontend/tests/e2e/fixtures/recording-lifecycle-api.ts
+  - frontend/tests/unit/runtime-logs/RuntimeLogCompatibility.test.tsx
+  - internal/datalink/dbtarget/writer_failure_log_test.go
+  - internal/api/router_runtime_rule_evidence_test.go
+  - internal/api/router_studio_v2_write_group_stop_remove_safety_test.go
+  - internal/datalink/groupdelivery/quota_reclaim_receipts_test.go
+  - internal/datalink/workspace/write_group_basic_managed_test.go
+  - frontend/tests/unit/workbench-v2/recording-modal-return.test.tsx
+  - frontend/tests/unit/services/studioV2WorkspaceWriteGroups.test.ts
+  - frontend/tests/unit/workbench-v2/recording-home-source-switching.test.tsx
+  - cmd/test_ui/group_pipeline_outage_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-row-actions.test.tsx
+  - frontend/tests/unit/runtime-dashboard/runtime-legacy-delivery-safety.test.tsx
+  - frontend/tests/unit/workbench-v2/device-delete-cache.test.tsx
+  - internal/datalink/workspace/write_group_lifecycle_error_preservation_test.go
+  - internal/datalink/workspace/write_group_reclaim_delete_test.go
+  - cmd/test_ui/group_pipeline_lifecycle_crash_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-visual-status.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-device-status.test.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_legacy_test.go
+  - frontend/tests/unit/services/studioV2DeleteResponses.test.ts
+  - internal/api/router_studio_v2_recording_start_delete_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-memory-view.test.tsx
+  - frontend/tests/unit/dev/recording-style-preview.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-acquisition-anomalies.test.tsx
+  - internal/datalink/workspace/write_group_successor_replay_test.go
+  - internal/datalink/workspace/write_group_lifecycle_actions_fixture_test.go
+  - internal/datalink/workspace/write_group_lifecycle_actions_test.go
+  - frontend/tests/e2e/recording-home-status-layout.spec.ts
+  - frontend/tests/e2e/recording-home-tombstone-delete.spec.ts
+  - frontend/tests/unit/workbench-v2/recording-home-inline-evidence.test.tsx
+  - frontend/tests/unit/workbench-v2/recordingLifecycleBrowserFixture.test.ts
+  - internal/datalink/workspace/write_group_service_test.go
+  - internal/datalink/workspace/write_group_tombstone_remove_actions_test.go
+  - cmd/test_ui/service_wiring.go
+  - cmd/test_ui/group_pipeline_legacy_takeover_test.go
+  - frontend/tests/unit/runtime-logs/runtimeLogDomainProjection.test.ts
+  - frontend/tests/unit/workbench-v2/recording-home-delete-integration.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-device-actions.ts
+  - frontend/tests/unit/workbench-v2/recording-home-mc-resave.test.tsx
+  - frontend/tests/unit/workbench-v2/writeGroupLifecycle.test.tsx
+  - internal/datalink/grouppipeline/backlog_guard_delete_count_test.go
+  - cmd/test_ui/group_pipeline_lifecycle_test.go
+  - internal/api/router_studio_v2_workspace_devices_test.go
+  - internal/datalink/grouppipeline/applied_configuration_read_test.go
+  - internal/datalink/workspace/write_group_permanent_delete_recording_start_test.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler_cascade_test.go
+  - internal/api/router_studio_v2_recording_delete_contract_test.go
+  - frontend/tests/unit/workbench-v2/device-delete-dialog.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-management.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-mc-locator.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-source-entry.test.tsx
+  - frontend/tests/e2e/recording-database-unavailable.spec.ts
+  - internal/datalink/workspace/write_group_successor_guard_test.go
+  - internal/datalink/dbtarget/writer_failure_log_outcome_test.go
+  - internal/api/router_studio_v2_write_group_lifecycle_history_test.go
+  - internal/datalink/grouppipeline/stop_remove_intake_fence_test.go
+  - cmd/test_ui/gateway_logging_database_test.go
+  - frontend/tests/e2e/recording-home-narrow-records.spec.ts
+  - frontend/tests/unit/workbench-v2/recording-home-tombstone-delete.test.tsx
+  - internal/api/handlers/studio_v2_workspace_devices_handler_recordings_test.go
+  - internal/datalink/workspace/write_group_lifecycle_error_test.go
+  - internal/datalink/workspace/write_group_permanent_delete_schema_test.go
+  - internal/datalink/workspace/write_group_permanent_delete_shared_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-new-range-strict-ack.test.tsx
+-->
 
 ---
 ### Requirement: Stable recording lineage with distinct successor generations
@@ -261,16 +544,223 @@ The lifecycle review SHALL list predecessor and successor destination identities
 #### Scenario: Remove or transition with mixed pending evidence
 
 - **WHEN** a group contains collecting samples and queued or unknown outbox rows from older revisions
-- **THEN** the confirmation displays their distinct units and original destinations and does not imply that removal clears them or that transition retargets finalized rows; any unfinalized observation handoff is separately identified with its original provenance and consuming owner.
+- **THEN** a transition confirmation displays their distinct units and original destinations and does not imply that transition retargets finalized rows, and a removal attempt is refused with the same distinct units so the operator can stop and wait for delivery; any unfinalized observation handoff is separately identified with its original provenance and consuming owner.
 
 ##### Example: Remove or transition with mixed pending evidence
 
 - **GIVEN** R1 has 3 collecting samples and 2 queued outbox rows including 1 unknown outcome
-- **WHEN** the operator opens impact review
-- **THEN** the counts remain separately labeled and the UI does not claim 5 homogeneous records
+- **WHEN** the operator opens impact review or requests removal
+- **THEN** the counts remain separately labeled, the UI does not claim 5 homogeneous records, and removal is refused
 
 
-
+<!-- @trace
+source: improve-recording-home-status-and-delete
+updated: 2026-11-08
+code:
+  - internal/datalink/dbtarget/writer_snapshot.go
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupLifecycleBar.tsx
+  - frontend/studio-v2-diagnostic.cjs
+  - internal/datalink/workspace/write_group_service.go
+  - internal/datalink/runtimeview/contract.go
+  - docs/validation/memory-views-20261106/skill/SKILL.md
+  - frontend/src/services/runtimeLogLegacyProjection.ts
+  - internal/datalink/dbtarget/writer_workers.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeResultFacts.tsx
+  - frontend/src/i18n/locales/zh-TW/recording-home-status.json
+  - internal/datalink/workspace/write_group_permanent_delete_audit.go
+  - docs/testing.md
+  - frontend/src/features/datalink/workbench-v2/recording-home/DeviceDeleteDialog.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupEditor.tsx
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/RecordingLifecycleHistory.tsx
+  - internal/datalink/workspace/device_recording_delete.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeStatusSummary.tsx
+  - internal/datalink/workspace/write_group_permanent_delete.go
+  - internal/diagnostics/projection.go
+  - internal/api/router.go
+  - frontend/src/services/runtimeLogDomainProjection.ts
+  - frontend/src/features/datalink/workbench-v2/recording-home/recording-delete-dialog.css
+  - internal/api/handlers/studio_v2_workspace_devices_handler.go
+  - internal/datalink/modbusshare/service_projection.go
+  - docs/technical/studio-surface-inventory/backend-api-registry.md
+  - frontend/src/i18n/locales/zh-TW/runtime-logs.json
+  - internal/api/router_studio_v2_write_group_routes.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/recordingHomeStatusCounts.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/SavedRecordingActions.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_purge.go
+  - internal/diagnostics/domain_event.go
+  - docs/swagger/swagger.json
+  - docs/swagger/docs.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/recordingHomeLifecycleMatches.ts
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeWriteStages.tsx
+  - internal/api/handlers/typed_errors.go
+  - internal/datalink/device/workspace_delete.go
+  - internal/datalink/groupdelivery/quota.go
+  - frontend/src/services/runtimeRuleEvidenceParser.ts
+  - AGENTS.md
+  - docs/technical/studio-surface-inventory/studio-v2-runtime.md
+  - internal/datalink/workspace/write_group_lifecycle_actions.go
+  - frontend/src/types/runtimeRuleEvidence.ts
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeStatusDistribution.tsx
+  - internal/api/handlers/studio_v2_workspace_write_groups_handler.go
+  - internal/datalink/workspace/write_group_permanent_delete_recording_start.go
+  - frontend/src/i18n/locales/en/recording-home.json
+  - frontend/src/services/studioV2WorkspaceWriteGroups.ts
+  - internal/datalink/workspace/write_group_permanent_delete_shared.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler_delete.go
+  - internal/datalink/audit/types.go
+  - internal/datalink/dbtarget/writer_failure_log.go
+  - frontend/src/hooks/datalink/useStudioV2WorkspaceDevices.ts
+  - frontend/src/services/studioV2WorkspaceDelete.ts
+  - internal/api/handlers/studio_v2_workspace_write_groups_handler_mutate.go
+  - internal/datalink/dbtarget/writer_flush.go
+  - frontend/src/hooks/datalink/useStudioV2WriteGroups.ts
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeRoute.tsx
+  - internal/testutil/legacyrecording/tombstone.go
+  - internal/api/handlers/studio_v2_workspace_write_groups_handler_delete.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/deviceConnectionState.ts
+  - frontend/src/i18n/locales/en/recording-home-status.json
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeRowActions.tsx
+  - frontend/src/i18n/locales/zh-TW/recording-home-delete.json
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/GroupDeliveryStrip.tsx
+  - frontend/src/i18n/locales/zh-TW/recording-home.json
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHome.tsx
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeDestinationCell.tsx
+  - frontend/src/features/datalink/workbench-v2/recording-home/recordingHomeWriteStageMapping.ts
+  - internal/datalink/dbtarget/writer_group_flush.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/recordingHomeRows.css
+  - frontend/src/services/studioV2WorkspaceDevices.ts
+  - internal/datalink/dbtarget/writer_retry.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeUnconfirmed.tsx
+  - frontend/src/features/runtime-logs/RuntimeLogLegacyEvent.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_operations.go
+  - internal/datalink/workspace/write_group_permanent_delete_storage.go
+  - frontend/src/i18n/config.ts
+  - internal/datalink/workspace/write_group_permanent_delete_scope.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingDeleteDialog.tsx
+  - frontend/src/features/datalink/workbench-v2/recording-home/recordingHomeStatus.css
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeDeviceActions.tsx
+  - frontend/src/features/datalink/workbench-v2/recording-home/useRecordingHomeDeviceStatus.ts
+  - docs/swagger/swagger.yaml
+  - frontend/src/i18n/locales/en/recording-home-rows.json
+  - frontend/src/types/studioV2Delete.ts
+  - frontend/src/types/deviceConnection.ts
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeRecordRow.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_guard.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeDeviceStrip.tsx
+  - frontend/src/i18n/locales/zh-TW/recording-home-rows.json
+  - frontend/src/i18n/locales/zh-TW/runtime-dashboard.json
+  - frontend/src/dev/previewI18n.ts
+  - frontend/src/features/datalink/workbench-v2/steps/step4/writeGroup/lifecycle/SavedRecordingRemoveDialog.tsx
+  - frontend/src/i18n/locales/en/runtime-dashboard.json
+  - docs/technical/studio-surface-inventory/changelog.sqlite
+  - docs/validation/memory-views-20261106/skill/references/lessons.md
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingDeleteDialogController.tsx
+  - internal/datalink/grouppipeline/backlog_guard.go
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingHomeCollection.tsx
+  - frontend/src/i18n/locales/en/recording-home-delete.json
+  - frontend/src/features/datalink/workbench-v2/recording-home/RecordingDeleteDialogError.tsx
+  - frontend/src/i18n/locales/en/runtime-logs.json
+tests:
+  - internal/api/router_studio_v2_write_group_lifecycle_test.go
+  - internal/datalink/workspace/write_group_permanent_delete_delivery_fixture_test.go
+  - internal/api/router_studio_v2_successor_first_start_fixture_test.go
+  - frontend/tests/unit/runtime-logs/legacy-event-fixtures.ts
+  - frontend/tests/unit/workbench-v2/saved-recording-actions.test.tsx
+  - internal/api/handlers/studio_v2_workspace_write_groups_handler_delete_test.go
+  - frontend/tests/unit/workbench-v2/groupDeliveryStrip.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-accessibility.test.tsx
+  - internal/api/router_studio_v2_locator_entry_test.go
+  - frontend/tests/unit/dev/recording-style-bootstrap.test.tsx
+  - internal/datalink/workspace/recording_start_disabled_test.go
+  - internal/datalink/dbtarget/writer_failure_revision_test.go
+  - cmd/test_ui/group_pipeline_outage_delete_test.go
+  - frontend/tests/unit/workbench-v2/recording-editor-range-mc-prepare.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-memory-scope.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-guided-saved-card.test.tsx
+  - internal/datalink/workspace/write_group_lifecycle_test.go
+  - internal/datalink/workspace/write_group_mixed_safety_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-route.test.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_storage_test.go
+  - frontend/tests/unit/workbench-v2/device-connection-state.test.ts
+  - frontend/tests/unit/workbench-v2/recording-home-status-counts.test.ts
+  - frontend/tests/unit/workbench-v2/recording-home-shell.test.tsx
+  - frontend/tests/unit/workbench-v2/studio-locator-group-focus.test.tsx
+  - cmd/test_ui/gateway_logging.go
+  - internal/api/router_studio_v2_write_group_boundaries_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-source-modal.test.tsx
+  - internal/datalink/grouppipeline/backlog_guard_lifecycle_test.go
+  - internal/datalink/workspace/write_group_circuit_profile_rules_test.go
+  - frontend/tests/unit/workbench-v2/recording-delete-dialog.test.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_test.go
+  - internal/api/router_studio_v2_write_group_action_errors_test.go
+  - frontend/tests/unit/runtime-logs/runtimeLogLegacyProjection.test.ts
+  - cmd/test_ui/delivery_events_unavailable_test.go
+  - frontend/tests/e2e/fixtures/recording-lifecycle-api.ts
+  - frontend/tests/unit/runtime-logs/RuntimeLogCompatibility.test.tsx
+  - internal/datalink/dbtarget/writer_failure_log_test.go
+  - internal/api/router_runtime_rule_evidence_test.go
+  - internal/api/router_studio_v2_write_group_stop_remove_safety_test.go
+  - internal/datalink/groupdelivery/quota_reclaim_receipts_test.go
+  - internal/datalink/workspace/write_group_basic_managed_test.go
+  - frontend/tests/unit/workbench-v2/recording-modal-return.test.tsx
+  - frontend/tests/unit/services/studioV2WorkspaceWriteGroups.test.ts
+  - frontend/tests/unit/workbench-v2/recording-home-source-switching.test.tsx
+  - cmd/test_ui/group_pipeline_outage_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-row-actions.test.tsx
+  - frontend/tests/unit/runtime-dashboard/runtime-legacy-delivery-safety.test.tsx
+  - frontend/tests/unit/workbench-v2/device-delete-cache.test.tsx
+  - internal/datalink/workspace/write_group_lifecycle_error_preservation_test.go
+  - internal/datalink/workspace/write_group_reclaim_delete_test.go
+  - cmd/test_ui/group_pipeline_lifecycle_crash_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-visual-status.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-device-status.test.tsx
+  - internal/datalink/workspace/write_group_permanent_delete_legacy_test.go
+  - frontend/tests/unit/services/studioV2DeleteResponses.test.ts
+  - internal/api/router_studio_v2_recording_start_delete_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-memory-view.test.tsx
+  - frontend/tests/unit/dev/recording-style-preview.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-acquisition-anomalies.test.tsx
+  - internal/datalink/workspace/write_group_successor_replay_test.go
+  - internal/datalink/workspace/write_group_lifecycle_actions_fixture_test.go
+  - internal/datalink/workspace/write_group_lifecycle_actions_test.go
+  - frontend/tests/e2e/recording-home-status-layout.spec.ts
+  - frontend/tests/e2e/recording-home-tombstone-delete.spec.ts
+  - frontend/tests/unit/workbench-v2/recording-home-inline-evidence.test.tsx
+  - frontend/tests/unit/workbench-v2/recordingLifecycleBrowserFixture.test.ts
+  - internal/datalink/workspace/write_group_service_test.go
+  - internal/datalink/workspace/write_group_tombstone_remove_actions_test.go
+  - cmd/test_ui/service_wiring.go
+  - cmd/test_ui/group_pipeline_legacy_takeover_test.go
+  - frontend/tests/unit/runtime-logs/runtimeLogDomainProjection.test.ts
+  - frontend/tests/unit/workbench-v2/recording-home-delete-integration.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-device-actions.ts
+  - frontend/tests/unit/workbench-v2/recording-home-mc-resave.test.tsx
+  - frontend/tests/unit/workbench-v2/writeGroupLifecycle.test.tsx
+  - internal/datalink/grouppipeline/backlog_guard_delete_count_test.go
+  - cmd/test_ui/group_pipeline_lifecycle_test.go
+  - internal/api/router_studio_v2_workspace_devices_test.go
+  - internal/datalink/grouppipeline/applied_configuration_read_test.go
+  - internal/datalink/workspace/write_group_permanent_delete_recording_start_test.go
+  - internal/api/handlers/studio_v2_workspace_devices_handler_cascade_test.go
+  - internal/api/router_studio_v2_recording_delete_contract_test.go
+  - frontend/tests/unit/workbench-v2/device-delete-dialog.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-management.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-mc-locator.test.tsx
+  - frontend/tests/unit/workbench-v2/recording-home-source-entry.test.tsx
+  - frontend/tests/e2e/recording-database-unavailable.spec.ts
+  - internal/datalink/workspace/write_group_successor_guard_test.go
+  - internal/datalink/dbtarget/writer_failure_log_outcome_test.go
+  - internal/api/router_studio_v2_write_group_lifecycle_history_test.go
+  - internal/datalink/grouppipeline/stop_remove_intake_fence_test.go
+  - cmd/test_ui/gateway_logging_database_test.go
+  - frontend/tests/e2e/recording-home-narrow-records.spec.ts
+  - frontend/tests/unit/workbench-v2/recording-home-tombstone-delete.test.tsx
+  - internal/api/handlers/studio_v2_workspace_devices_handler_recordings_test.go
+  - internal/datalink/workspace/write_group_lifecycle_error_test.go
+  - internal/datalink/workspace/write_group_permanent_delete_schema_test.go
+  - internal/datalink/workspace/write_group_permanent_delete_shared_test.go
+  - frontend/tests/unit/workbench-v2/recording-home-new-range-strict-ack.test.tsx
+-->
 
 ---
 ### Requirement: Successor operations survive interrupted navigation
