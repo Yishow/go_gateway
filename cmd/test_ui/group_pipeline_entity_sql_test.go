@@ -17,10 +17,12 @@ import (
 func TestProductionEntityRowsSQLAndFrozenRestart(t *testing.T) {
 	for _, kind := range []string{"sqlite", "postgres"} {
 		for _, scenario := range []string{"shared", "different", "case-alias", "quoted-distinct", "missing", "partial", "silent"} {
+			// SQLite cannot represent case-distinct quoted columns. This
+			// combination is not part of its supported scenario matrix.
+			if kind == "sqlite" && scenario == "quoted-distinct" {
+				continue
+			}
 			t.Run(kind+"/"+scenario, func(t *testing.T) {
-				if kind == "sqlite" && scenario == "quoted-distinct" {
-					t.Skip("SQLite identifiers cannot differ only by case")
-				}
 				target := newEntityTarget(t, kind)
 				if scenario == "quoted-distinct" {
 					_, err := target.db.ExecContext(t.Context(), `ALTER TABLE `+target.name+` ADD COLUMN "Temperature" DOUBLE PRECISION`)

@@ -180,10 +180,10 @@ func TestProductionLifecycleDraftAndOfflineColdStartIntake(t *testing.T) {
 // matrix. Ordinary go test runs do not start a child or wait here.
 const lifecycleCrashEnv = "GW_LIFECYCLE_CRASH"
 
-func TestProductionLifecycleCrashChild(t *testing.T) {
+func runProductionLifecycleCrashChild(t *testing.T) {
 	path := os.Getenv(lifecycleCrashEnv)
 	if path == "" {
-		t.Skip("helper process")
+		t.Fatal("crash child requires its parent-provided database path")
 	}
 	db, err := sql.Open("sqlite", path+"?_pragma=busy_timeout(5000)")
 	require.NoError(t, err)

@@ -35,3 +35,15 @@
 - TestAcquisitionAcceptanceScheduledLoad 的完整 18 組耗時矩陣本輪未執行，不以兩個其他 opt-in 測試取代。
 
 資料庫補測與最後完整批次結果以本次交付報告為準，不能沿用原始 524 的數字當成修復後結論。
+
+## 後續：依要求移除剩餘八個測試身份
+
+此節取代上文對測試入口「目前仍保留」的描述，不改寫先前測試結果。
+
+- 刪除真 PLC 整合測試檔及其 opt-in helper，測試套件不再含該硬編碼目標。
+- 刪除 TestAcquisitionAcceptanceScheduledLoad 的 18 組長負載矩陣入口；兩個短排程 pilot 與共用測量 helper 保留。
+- SQLite quoted-distinct 組合不再註冊；PostgreSQL 對應組合及 SQLite 其餘案例保留。
+- 三個 crash/kill 子程序改為普通 helper，由既有父測試根據專用環境參數分派，保留終止程序及恢復驗證，沒有把空執行改報 PASS。
+- SQL Server gate 的拒絕分支改用 recorder 核對拒絕與原因，不再刻意建立兩個 SKIP 子測試；整合測試的能力檢查不變。
+
+移除不代表真 PLC 或長負載已通過。本次未修改產品程式，也未取消其他尚缺環境的 skip。Mac 手測仍須依一般建置流程建立前端與內嵌資源。

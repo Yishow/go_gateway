@@ -98,11 +98,11 @@ func openLocal(t testing.TB, path string) *sql.DB {
 	return db
 }
 
-// TestCrashChildProcess is the child: it does nothing unless the parent set a role.
-func TestCrashChildProcess(t *testing.T) {
+// runCrashChildProcess is the child: it does nothing unless the parent set a role.
+func runCrashChildProcess(t *testing.T) {
 	role := os.Getenv(roleEnv)
 	if role == "" {
-		t.Skip("helper process; only runs when spawned by the crash tests")
+		t.Fatal("crash child requires its parent-provided role")
 	}
 	ctx := context.Background()
 	local := openLocal(t, os.Getenv(localDBEnv))
@@ -127,7 +127,7 @@ func TestCrashChildProcess(t *testing.T) {
 
 func spawnChild(t *testing.T, role string, env map[string]string) *exec.Cmd {
 	t.Helper()
-	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestCrashChildProcess$", "-test.count=1")
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestCrashKillAfterAckLosesNothingAndDeliversOnce$", "-test.count=1")
 	cmd.Env = append(os.Environ(), roleEnv+"="+role)
 	for key, value := range env {
 		cmd.Env = append(cmd.Env, key+"="+value)
@@ -188,6 +188,10 @@ func countPG(t *testing.T, admin *sql.DB, pgSchema, table string) int {
 }
 
 func TestCrashKillAfterAckLosesNothingAndDeliversOnce(t *testing.T) {
+	if os.Getenv(roleEnv) != "" {
+		runCrashChildProcess(t)
+		return
+	}
 	dsn := postgresDSN(t)
 	admin, err := sql.Open("pgx", dsn)
 	require.NoError(t, err)

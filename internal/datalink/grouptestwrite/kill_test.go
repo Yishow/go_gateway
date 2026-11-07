@@ -30,10 +30,10 @@ const (
 	killReceiptEnv = "GW_TESTWRITE_RECEIPT"
 )
 
-// TestTestWriteChildProcess is the child; it does nothing unless spawned.
-func TestTestWriteChildProcess(t *testing.T) {
+// runTestWriteChildProcess is the child; it does nothing unless spawned.
+func runTestWriteChildProcess(t *testing.T) {
 	if os.Getenv(killRoleEnv) == "" {
-		t.Skip("helper process; only runs when spawned by the kill test")
+		t.Fatal("kill child requires its parent-provided role")
 	}
 	probe, err := sql.Open("sqlite", os.Getenv(killDestEnv))
 	require.NoError(t, err)
@@ -57,6 +57,10 @@ func TestTestWriteChildProcess(t *testing.T) {
 }
 
 func TestOwnedCleanupAndRestartSurvivesARealKill(t *testing.T) {
+	if os.Getenv(killRoleEnv) != "" {
+		runTestWriteChildProcess(t)
+		return
+	}
 	for name, receipt := range map[string]bool{"no dedupe": false, "receipt dedupe": true} {
 		t.Run(name, func(t *testing.T) {
 			h, ledgerDB := newDurableHarness(t, receipt)
@@ -64,7 +68,7 @@ func TestOwnedCleanupAndRestartSurvivesARealKill(t *testing.T) {
 			preview := h.preview()
 			ready := filepath.Join(t.TempDir(), "ready")
 
-			cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestTestWriteChildProcess$", "-test.v")
+			cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestOwnedCleanupAndRestartSurvivesARealKill$", "-test.v")
 			receiptFlag := "0"
 			if receipt {
 				receiptFlag = "1"

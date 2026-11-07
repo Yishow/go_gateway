@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 	"testing"
 	"time"
@@ -18,19 +17,6 @@ func TestAcquisitionAcceptanceScheduledPilot(t *testing.T) {
 
 func TestAcquisitionAcceptanceDeliveryPilot(t *testing.T) {
 	runAcceptanceScheduled(t, 2, 128, time.Millisecond, 3)
-}
-
-func TestAcquisitionAcceptanceScheduledLoad(t *testing.T) {
-	if os.Getenv("GATEWAY_ACQUISITION_ACCEPTANCE") != "1" {
-		t.Skip("long production scheduled acceptance; explicitly select a named case")
-	}
-	for _, devices := range []int{1, 10, 100} {
-		for _, points := range []int{3, 128} {
-			for _, rtt := range []time.Duration{time.Millisecond, 20 * time.Millisecond, 100 * time.Millisecond} {
-				t.Run(fmt.Sprintf("devices=%d/points=%d/rtt=%s", devices, points, rtt), func(t *testing.T) { runAcceptanceScheduled(t, devices, points, rtt, 100) })
-			}
-		}
-	}
 }
 
 // Join every required native ID to its immutable successful publication fact.

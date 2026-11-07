@@ -21,7 +21,7 @@ func killLifecycleAfterAck(t *testing.T, env *outageEnv, group *workspace.WriteG
 	var name, path string
 	require.NoError(t, env.db.QueryRowContext(t.Context(), `PRAGMA database_list`).Scan(&seq, &name, &path))
 	ready := filepath.Join(filepath.Dir(path), "crash-ready")
-	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestProductionLifecycleCrashChild$", "-test.count=1")
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestProductionLifecycleKilledHistoricalJournalDrainsOriginalRevision$", "-test.count=1")
 	cmd.Env = append(os.Environ(), lifecycleCrashEnv+"="+path, "GW_LIFECYCLE_GROUP="+group.ID, "GW_LIFECYCLE_ACTION="+action)
 	var output bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &output, &output
@@ -51,6 +51,10 @@ func lifecycleJournalCount(t *testing.T, env *outageEnv, revision string, openOn
 }
 
 func TestProductionLifecycleKilledHistoricalJournalDrainsOriginalRevision(t *testing.T) {
+	if os.Getenv(lifecycleCrashEnv) != "" {
+		runProductionLifecycleCrashChild(t)
+		return
+	}
 	for _, kind := range []string{"sqlite", "postgres"} {
 		for _, action := range []string{"disable", "delete", "replace"} {
 			t.Run(kind+"/"+action, func(t *testing.T) {

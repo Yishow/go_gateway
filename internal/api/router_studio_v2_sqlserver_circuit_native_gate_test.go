@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"testing"
 
 	"go-gateway/internal/datalink/dbtarget"
@@ -21,7 +22,12 @@ func sqlServerCircuitGateReason(mode workspace.WriteGroupStorageMode, capability
 	return ""
 }
 
-func checkSQLServerCircuitGate(t *testing.T, mode workspace.WriteGroupStorageMode, capability *dbtarget.SQLServerRecordingCapability) {
+type circuitGateReporter interface {
+	Helper()
+	Skip(...any)
+}
+
+func checkSQLServerCircuitGate(t circuitGateReporter, mode workspace.WriteGroupStorageMode, capability *dbtarget.SQLServerRecordingCapability) {
 	t.Helper()
 	if reason := sqlServerCircuitGateReason(mode, capability); reason != "" {
 		t.Skip(reason)
@@ -83,12 +89,22 @@ func TestSQLServerCircuitNativeGate(t *testing.T) {
 			gotReason := sqlServerCircuitGateReason(tt.mode, tt.capability)
 			require.Equal(t, tt.wantReason, gotReason)
 
-			var skipped bool
-			t.Run("gate_execution", func(subT *testing.T) {
-				subT.Cleanup(func() { skipped = subT.Skipped() })
-				checkSQLServerCircuitGate(subT, tt.mode, tt.capability)
-			})
-			require.Equal(t, tt.wantSkip, skipped)
+			reporter := &circuitGateRecorder{}
+			checkSQLServerCircuitGate(reporter, tt.mode, tt.capability)
+			require.Equal(t, tt.wantSkip, reporter.skipped)
+			require.Equal(t, tt.wantReason, reporter.reason)
 		})
 	}
+}
+
+// Record the gate decision without deliberately skipping a Go subtest.
+type circuitGateRecorder struct {
+	skipped bool
+	reason  string
+}
+
+func (*circuitGateRecorder) Helper() {}
+func (r *circuitGateRecorder) Skip(args ...any) {
+	r.skipped = true
+	r.reason = fmt.Sprint(args...)
 }
