@@ -105,6 +105,7 @@ Changes can be parked（暫存）— temporarily moved out of `openspec/changes/
 ## 驗證（按需載入）
 
 - 修改程式、設定、測試或文件前，或任務要求驗證、合併／發布檢查時，先讀 [測試與驗證指引](docs/testing.md)，依任務選用對應章節。
+- 人工／AI 的瀏覽器操作與探索式驗證使用 `agent-browser` 獨立工作階段；既有自動化 E2E 測試照實際測試入口與依賴執行。
 - 純問答與唯讀檢視不必載入；只有選測或查證測試結果需要時才讀取。
 
 ## 程式碼與安全

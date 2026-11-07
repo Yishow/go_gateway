@@ -21,7 +21,7 @@ description: 驗證 go_gateway 從實際 UI 新增設備、點位、目的地與
 
 - 用新 owned run 目錄、空設定 DB、空目的地 namespace 與 localhost 埠。接手舊 QA DB／已建設備只能當局部驗證。
 - 建置候選前端並同步 embed，留 binary、SPA 資源與 dirty source 雜湊。`git archive HEAD` 不含未提交修正，必須明確覆蓋候選檔案並留下清單。
-- 服務、長命令與 worker 依 `herdr-core`／`hc --skill` 執行。瀏覽器用獨立 agent-browser session 或既有 Playwright runner 的專用 Chromium，不用日常 Chrome。
+- 服務、長命令與 worker 依 `herdr-core`／`hc --skill` 執行。人工／AI 瀏覽器操作使用獨立 agent-browser session，不用日常 Chrome；既有自動化 E2E 測試仍依其實際 runner 執行並記錄工具。
 - 初始化清單；先把以下變數設成本輪真實位置，不照抄私人歷史路徑：
 
 ```sh

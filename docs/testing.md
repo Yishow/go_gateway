@@ -46,11 +46,28 @@ npm test -- --run tests/unit/workbench-v2/mapping-autosave-queue
 
 交付時再依影響補上 page、service 或整合測試；不能由 queue 測試通過推論整個 Studio 流程通過。
 
-### macOS 本機瀏覽器驗證
+### 人工／AI 瀏覽器驗證
 
-- 首次執行 E2E 前，在 `frontend/` 執行 `npx playwright install chromium`，安裝相符的專用瀏覽器與錄影工具；headless 測試沿用既有設定的 headless shell。缺少套件時先補安裝，不改用 `channel: 'chrome'` 啟動日常使用的 Chrome。[Playwright 官方說明](https://playwright.dev/docs/browsers#chromium-headless-shell)
-- 在受限執行環境中，瀏覽器啟動須使用工具提供、經核准的主機執行權限；不要先嘗試啟動系統 Chrome。曾實測 macOS 應用程式註冊階段因限制而 SIGABRT，並產生「未預期結束」彈窗。
-- `agent-browser` 使用獨立工作階段及專用 headless shell，可透過 `--executable-path` 或本機設定的 `executablePath` 指定。瀏覽器版本更新後若路徑失效，重新安裝並核對設定；不退回系統 Chrome。
+使用 [agent-browser](https://github.com/vercel-labs/agent-browser) 操作已啟動的測試站台。首次使用先安裝 CLI 並執行 `agent-browser install`；指定受測網址前，核對站台與資料均屬本次授權的測試環境。
+
+```sh
+agent-browser skills get core
+gateway_browser_session="$(agent-browser session id --scope worktree --prefix gateway-verify)"
+agent-browser --session "$gateway_browser_session" open http://127.0.0.1:4173/studio/v2
+agent-browser --session "$gateway_browser_session" snapshot -i
+agent-browser --session "$gateway_browser_session" screenshot
+agent-browser --session "$gateway_browser_session" close
+```
+
+網址與 session prefix 依本輪環境及任務調整；頁面變動後重新 snapshot，再操作新的 element refs。填寫表單後核對實際欄值及保存結果。session 僅供本輪使用，結束時只關閉自己開啟的 session。
+
+使用 `agent-browser install` 安裝的專用瀏覽器，或以 `--executable-path`／本機 `executablePath` 設定指定專用 Chromium；路徑失效時重新核對，不連接日常使用的 Chrome。在受限執行環境中，瀏覽器啟動須使用工具提供、經核准的主機執行權限；曾實測 macOS 應用程式註冊階段因限制而 SIGABRT，並產生「未預期結束」彈窗。
+
+單次 Studio 診斷可從 repo 根目錄執行 `node frontend/studio-v2-diagnostic.cjs`；預設檢查 `http://127.0.0.1:4174/studio/v2`，以 `STUDIO_DIAGNOSTIC_URL` 與 `STUDIO_DIAGNOSTIC_SCREENSHOT` 指定本輪網址及截圖路徑，必要時用 `AGENT_BROWSER_EXECUTABLE_PATH` 指定專用瀏覽器。腳本輸出頁面、console 與錯誤資訊；這不是 E2E 測試通過的證據。
+
+### 既有自動化 E2E 測試
+
+`npm run test:e2e` 執行既有 Playwright Test 測試，不能以一次 agent-browser 操作取代整套測試。首次執行前，在 `frontend/` 執行 `npx playwright install chromium`，安裝相符的專用瀏覽器與錄影工具；headless 測試沿用既有設定的 headless shell，不改用 `channel: 'chrome'` 啟動日常使用的 Chrome。[Playwright 官方說明](https://playwright.dev/docs/browsers#chromium-headless-shell)
 
 ### 已驗工具注意事項：Chrome DevTools MCP 1.12.0 填表
 

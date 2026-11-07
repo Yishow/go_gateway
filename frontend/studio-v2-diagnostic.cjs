@@ -1,40 +1,72 @@
-const { chromium } = require('@playwright/test');
+const { spawnSync } = require('node:child_process');
+const { randomBytes } = require('node:crypto');
 
-(async () => {
-  const browser = await chromium.launch({ headless: true, channel: 'chrome' });
-  const page = await browser.newPage();
+const session = `gwdiag-${randomBytes(6).toString('hex')}`;
+const url = process.env.STUDIO_DIAGNOSTIC_URL || 'http://127.0.0.1:4174/studio/v2';
+const screenshot = process.env.STUDIO_DIAGNOSTIC_SCREENSHOT || '/private/tmp/studio-v2-diagnostic.png';
 
-  page.on('console', (msg) => {
-    console.log('C', msg.type(), msg.text());
+function browser(...args) {
+  const command = spawnSync('agent-browser', ['--session', session, '--headed', 'false', '--json', ...args], {
+    encoding: 'utf8',
+    timeout: 40000,
   });
-  page.on('pageerror', (err) => {
-    console.log('PE', err.message);
-  });
+  if (command.error) throw command.error;
+  let response;
+  try {
+    response = JSON.parse(command.stdout);
+  } catch {
+    throw new Error(command.stderr.trim() || `agent-browser returned invalid JSON (exit ${command.status})`);
+  }
+  if (command.status !== 0 || !response.success) {
+    throw new Error(response.error || command.stderr.trim() || 'agent-browser command failed');
+  }
+  return response.data;
+}
 
-  await page.goto('http://127.0.0.1:4174/studio/v2', { waitUntil: 'domcontentloaded', timeout: 20000 });
-  await page.waitForTimeout(3000);
+const inspectPage = `(() => {
+  const count = (selector) => document.querySelectorAll(selector).length;
+  const countText = (text) => Array.from(document.querySelectorAll('body *')).filter((element) => {
+    const contains = (node) => (node.innerText || '').includes(text);
+    return contains(element) && !Array.from(element.children).some(contains);
+  }).length;
+  return {
+    title: document.title,
+    url: location.href,
+    step1: count('[data-testid="step1-device-view"]'),
+    inputHost: count('[data-testid="input-host"]'),
+    runTest: count('[data-testid="run-test-button"]'),
+    signin: countText('登入'),
+    notFound: countText('404'),
+    testids: Array.from(document.querySelectorAll('[data-testid]'))
+      .slice(0, 40).map((element) => element.getAttribute('data-testid')).filter(Boolean),
+    body: (document.body?.innerText || '').replace(/\\s+/g, ' ').slice(0, 1800),
+  };
+})()`;
 
-  const hasStep1 = await page.locator('[data-testid="step1-device-view"]').count();
-  const hasInputHost = await page.locator('[data-testid="input-host"]').count();
-  const hasRunTest = await page.locator('[data-testid="run-test-button"]').count();
-  const hasLoginText = await page.getByText('登入').count();
-  const has404 = await page.locator('text=404').count();
-
-  const testids = await page.$$eval('[data-testid]', (els) =>
-    els.slice(0, 120).map((el) => el.getAttribute('data-testid')).filter(Boolean),
-  );
-  const bodyText = await page.locator('body').innerText().catch(() => '');
-
-  console.log('TITLE=', await page.title());
-  console.log('URL=', page.url());
-  console.log('HAS_step1=', hasStep1);
-  console.log('HAS_input_host=', hasInputHost);
-  console.log('HAS_run_test=', hasRunTest);
-  console.log('HAS_signin=', hasLoginText);
-  console.log('HAS_404=', has404);
-  console.log('TESTID_HEAD=', testids.slice(0, 40).join(','));
-  console.log('BODY=', bodyText.replace(/\s+/g, ' ').slice(0, 1800));
-
-  await page.screenshot({ path: '/private/tmp/studio-v2-diagnostic.png', fullPage: true });
-  await browser.close();
-})();
+try {
+  browser('open', url);
+  browser('wait', '3000');
+  const { result } = browser('eval', '-b', Buffer.from(inspectPage).toString('base64'));
+  console.log('TITLE=', result.title);
+  console.log('URL=', result.url);
+  console.log('HAS_step1=', result.step1);
+  console.log('HAS_input_host=', result.inputHost);
+  console.log('HAS_run_test=', result.runTest);
+  console.log('HAS_signin=', result.signin);
+  console.log('HAS_404=', result.notFound);
+  console.log('TESTID_HEAD=', result.testids.join(','));
+  console.log('BODY=', result.body);
+  console.log('BROWSER_CONSOLE=', JSON.stringify(browser('console')));
+  console.log('BROWSER_PAGE_ERRORS=', JSON.stringify(browser('errors')));
+  browser('screenshot', screenshot, '--full');
+} catch (error) {
+  console.error('DIAGNOSTIC_ERROR=', error.message);
+  process.exitCode = 1;
+} finally {
+  try {
+    browser('close');
+  } catch (error) {
+    console.error('BROWSER_CLOSE_ERROR=', error.message);
+    process.exitCode = 1;
+  }
+}

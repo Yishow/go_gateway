@@ -35,6 +35,7 @@
 - Testing Library `getByRole` 沒有 Playwright 的 `exact` option；型別或 harness 錯誤不能算產品 RED。
 - 設備表單先選協議再填名稱／連線欄位，且值已相同就不要重選。先填名稱再觸發協議選擇，會遇到正常的未送出變更確認；後續欄位 timeout 是腳本操作順序，不是設備保存 bug。
 - 一輪 agent-browser batch fill 沒有取代原預設文字，曾保存錯誤的 PG connector 欄值；改成逐欄 Playwright `fill` 並立即核對 `inputValue`、保存後再讀 canonical GET。修正只涉及該自有測試 connector，不當成產品缺陷。
+- 後續使用 agent-browser 時逐欄填寫，立即以 `get value` 核對，保存後再讀 canonical GET；不要把 batch 操作成功當作欄值正確的證據。
 
 ## 2026-11-06：真實數值與原圖是兩條驗收軸
 
