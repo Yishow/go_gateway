@@ -24,6 +24,7 @@ it('fullscreen contract covers tablets, short viewports, safe areas and classifi
   expect(css).toContain('(max-height: 479px)');
   expect(css).toContain('.gw-modal.gw-modal.gw-modal[data-size]');
   expect(css).toContain('height: 100dvh');
+  expect(css).toContain('--tw-translate-x: 0; --tw-translate-y: 0;');
   expect(css).toContain('font-size: max(16px, 1rem)');
   expect(css).toContain('input:not([type=checkbox], [type=radio], [type=range])');
   expect(css).toContain('safe-area-inset-bottom');

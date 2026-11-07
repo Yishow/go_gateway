@@ -3,6 +3,8 @@
 @media (max-width: 1024px), (pointer: coarse) and (max-width: 1366px), (max-height: 479px) {
   .gw-modal.gw-modal.gw-modal[data-size],
   .gw-legacy-dialog.gw-legacy-dialog, .gw-legacy-confirm.gw-legacy-confirm, .gw-slide-dialog.gw-slide-dialog {
+    /* CSS optimization can fold translate:none into transform; reset Tailwind offsets too. */
+    --tw-translate-x: 0; --tw-translate-y: 0;
     position: fixed; inset: 0; margin: 0; transform: none; translate: none;
     width: 100vw; max-width: none; height: 100dvh; max-height: none; min-height: 0;
     box-sizing: border-box; border: 0; border-radius: 0; overflow: hidden;
