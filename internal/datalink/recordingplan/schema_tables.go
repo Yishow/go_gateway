@@ -29,9 +29,10 @@ var managedTableSpecs = []managedTableSpec{
 		columns: strings.Fields(`workspace_id plan_id stream_id record_id measurement_id series_epoch
 			observed_at received_at quality quality_reason value_type val_num val_dec val_str val_bool is_test`),
 		columnCategories: makeCategoryMap(
-			"text", "workspace_id plan_id stream_id record_id measurement_id series_epoch quality quality_reason value_type val_dec val_str",
+			"text", "workspace_id plan_id stream_id record_id measurement_id series_epoch quality quality_reason value_type val_str",
 			"time", "observed_at received_at",
 			"float", "val_num",
+			"decimal", "val_dec",
 			"bool", "val_bool is_test",
 		),
 	},
@@ -117,6 +118,10 @@ func isColumnTypeCompatible(expectedCategory, actualType string) bool {
 		return strings.Contains(actual, "char") || strings.Contains(actual, "text") ||
 			strings.Contains(actual, "clob") || strings.Contains(actual, "json") ||
 			strings.Contains(actual, "string") || strings.Contains(actual, "uuid")
+	case "decimal":
+		// SQLite stores exact decimals as text; PostgreSQL emits NUMERIC.
+		// Do not accept floating-point or integer columns for this exact value.
+		return isColumnTypeCompatible("text", actual) || actual == "numeric"
 	case "float":
 		return strings.Contains(actual, "real") || strings.Contains(actual, "float") ||
 			strings.Contains(actual, "double") || strings.Contains(actual, "numeric") ||

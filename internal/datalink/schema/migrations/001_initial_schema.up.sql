@@ -331,7 +331,7 @@ $$ LANGUAGE plpgsql;
 -- 確保當前月份分區存在
 SELECT create_timeseries_partition_monthly(CURRENT_DATE);
 -- 預建下個月的分區
-SELECT create_timeseries_partition_monthly(CURRENT_DATE + INTERVAL '1 month');
+SELECT create_timeseries_partition_monthly((CURRENT_DATE + INTERVAL '1 month')::date);
 
 COMMENT ON FUNCTION create_timeseries_partition_monthly IS '建立指定月份的時序表分區';
 COMMENT ON FUNCTION create_timeseries_partition_daily IS '建立指定日期的時序表分區';

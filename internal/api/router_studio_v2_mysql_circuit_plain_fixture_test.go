@@ -302,6 +302,7 @@ func newMySQLCircuitPlainFixture(t *testing.T, options ...mysqlCircuitPlainFixtu
 		snapshot := &workspace.WriteGroupAppliedSnapshot{
 			WorkspaceID: group.WorkspaceID, GroupID: group.ID, GroupRevision: group.Revision,
 			AppliedRevision: group.Revision, EffectiveAt: base, Group: &group, RuntimeLayout: frozen,
+			CounterBindings: mysqlCircuitCounterProofs(t, &group, definition, tagTypes),
 		}
 		key := groupdelivery.GroupKey{WorkspaceID: group.WorkspaceID, GroupID: group.ID, GroupRevision: group.Revision}
 		if option.CanonicalApply {
