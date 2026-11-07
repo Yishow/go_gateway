@@ -57,7 +57,9 @@ func TestSQLServerSuccessorActivationRuntimeBoundaries(t *testing.T) {
 			require.NoError(t, r.pipe.AcceptSample(t.Context(), r.sample("late-unfinalized", r.boundary.Add(1500*time.Millisecond), float32(7))))
 			var accepted string
 			require.NoError(t, r.f.db.QueryRowContext(t.Context(), `SELECT created_at FROM wg_delivery_samples WHERE group_id=? AND sample_id=?`, r.prepared.Group.ID, "late-unfinalized").Scan(&accepted))
-			require.Equal(t, time.Date(2026, 10, 28, 12, 0, 18, 0, time.UTC).Format(time.RFC3339Nano), accepted, "late observation remains in its unfinalized successor window")
+			acceptedAt, err := time.Parse(time.RFC3339Nano, accepted)
+			require.NoError(t, err)
+			require.True(t, time.Date(2026, 10, 28, 12, 0, 18, 0, time.UTC).Equal(acceptedAt), "late observation remains in its unfinalized successor window")
 			r.clock.Store(time.Date(2026, 10, 28, 12, 0, 28, 0, time.UTC).UnixNano())
 			r.pipe.TickAll(t.Context())
 			require.Empty(t, r.reports)

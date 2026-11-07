@@ -124,6 +124,7 @@ func sqlServerCircuitTargetInspection(physical *dbtarget.SQLServerManagedInspect
 			MetadataVerified: e.MetadataVerified, TableType: e.TableType, ObjectID: e.ObjectID, Plain: e.Plain,
 			PrimaryKey: e.PrimaryKey, ColumnCollations: e.ColumnCollations, ColumnDefaults: e.ColumnDefaults,
 			ProvenanceJSONChecked: e.ProvenanceJSONChecked, RepairOperationID: e.RepairOperationID, PartitionInspected: e.PartitionInspected,
+			NativeMonthly: glmTargetPartition(e.NativeMonthly),
 		},
 	}
 	for _, column := range i.Columns {

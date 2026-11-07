@@ -112,16 +112,18 @@ func buildRecoveryRig(t *testing.T, kind string, recreateMissing *bool, cumulati
 		}
 		r.groups = append(r.groups, r.saveGroup(i, source, recreateMissing))
 	}
-	// Every group is confirmed first and then applied back to back: a group takes
-	// effect at the next boundary of its window, so applies spread over a slow
-	// setup could straddle one and leave an earlier group an empty first window.
 	for i := range r.groups {
 		r.confirm(&r.groups[i])
 	}
+	// One fixture batch must share a lifecycle clock even if real database I/O
+	// crosses a window boundary. Restore wall time for later lifecycle actions.
+	applyAt := time.Now().UTC()
+	f.groups.WithClock(func() time.Time { return applyAt })
+	defer f.groups.WithClock(nil)
 	for i := range r.groups {
 		r.apply(&r.groups[i])
 		require.True(t, r.groups[i].snapshot.EffectiveAt.Equal(r.groups[0].snapshot.EffectiveAt),
-			"the groups take effect together: %s and %s; run the test again", r.groups[0].snapshot.EffectiveAt, r.groups[i].snapshot.EffectiveAt)
+			"the groups take effect together: %s and %s", r.groups[0].snapshot.EffectiveAt, r.groups[i].snapshot.EffectiveAt)
 	}
 	r.table = destinationOf(getGroup(t, f, r.groups[0].id))["table_name"].(string)
 	return r

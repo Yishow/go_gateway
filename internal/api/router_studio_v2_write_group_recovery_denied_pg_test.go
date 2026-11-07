@@ -3,9 +3,11 @@ package api
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -101,7 +103,12 @@ func (r *recoveryRig) removeTimescaleExtension() {
 	r.t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		_, err := r.dest.ExecContext(ctx, `CREATE EXTENSION IF NOT EXISTS timescaledb`)
+		// TimescaleDB cannot be recreated in a backend that already loaded it.
+		// A fresh pool avoids reusing the session that dropped the extension.
+		restore, err := sql.Open("pgx", os.Getenv("POSTGRES_DSN"))
+		require.NoError(r.t, err)
+		defer func() { require.NoError(r.t, restore.Close()) }()
+		_, err = restore.ExecContext(ctx, `CREATE EXTENSION IF NOT EXISTS timescaledb`)
 		require.NoError(r.t, err, "the fixture's extension is put back")
 	})
 }
