@@ -58,12 +58,12 @@ for (const width of [320, 390, 640, 641, 768, 1000, 1001, 1280, 1440]) {
       const right = element.getBoundingClientRect().right;
       return { scrollWidth: element.scrollWidth, clientWidth: element.clientWidth, outside: [...element.querySelectorAll('*')].filter(child => child.getBoundingClientRect().right > right + 1 || child.scrollWidth > child.clientWidth + 1).slice(0, 8).map(child => ({ tag: child.tagName, text: child.textContent?.slice(0, 40), class: child.className, scroll: child.scrollWidth, client: child.clientWidth })) };
     });
-    if (width <= 640) expect(overflow.scrollWidth, JSON.stringify(overflow)).toBeGreaterThan(overflow.clientWidth);
+    if (width <= 641) expect(overflow.scrollWidth, JSON.stringify(overflow)).toBeGreaterThan(overflow.clientWidth);
     else expect(overflow.scrollWidth, JSON.stringify(overflow)).toBeLessThanOrEqual(overflow.clientWidth);
-    if (width <= 640) await table.getByRole('columnheader', { name: '操作' }).scrollIntoViewIfNeeded();
+    if (overflow.scrollWidth > overflow.clientWidth) await table.getByRole('columnheader', { name: '操作' }).scrollIntoViewIfNeeded();
     const regionBox = await scroll.boundingBox(), headerBox = await table.getByRole('columnheader', { name: '操作' }).boundingBox();
     expect(headerBox!.x).toBeGreaterThanOrEqual(regionBox!.x); expect(headerBox!.x + headerBox!.width).toBeLessThanOrEqual(regionBox!.x + regionBox!.width);
-    if (width <= 640) await scroll.evaluate(element => { element.scrollLeft = 0; });
+    if (overflow.scrollWidth > overflow.clientWidth) await scroll.evaluate(element => { element.scrollLeft = 0; });
     await page.screenshot({ path: testInfo.outputPath('top.png') });
     if (width === 1280) {
       await page.evaluate(() => window.scrollTo(0, 300));
@@ -75,8 +75,7 @@ for (const width of [320, 390, 640, 641, 768, 1000, 1001, 1280, 1440]) {
       const deviceBox = await cells.nth(0).boundingBox(), pointBox = await cells.nth(1).boundingBox(), addressBox = await cells.nth(2).boundingBox();
       const orderBox = await cells.nth(3).boundingBox(), actionBox = await cells.nth(5).boundingBox();
       expect(deviceBox!.y).toBe(pointBox!.y); expect(addressBox!.y).toBe(pointBox!.y);
-      if (width <= 640) expect(orderBox!.y).toBe(pointBox!.y);
-      else expect(orderBox!.y).toBeGreaterThan(pointBox!.y);
+      expect(orderBox!.y).toBe(pointBox!.y);
       expect(actionBox!.y).toBe(orderBox!.y);
       const remove = row.getByRole('button', { name: /移除/ });
       const typeMetrics = await cells.nth(4).evaluate(element => ({ available: element.clientWidth, content: element.scrollWidth, font: getComputedStyle(element).fontSize, padding: getComputedStyle(element).padding }));
@@ -87,7 +86,7 @@ for (const width of [320, 390, 640, 641, 768, 1000, 1001, 1280, 1440]) {
       const enabledColor = await toggle.evaluate(element => getComputedStyle(element).backgroundColor);
       await toggle.click(); await expect(toggle).toHaveAttribute('aria-pressed', 'false');
       expect(await toggle.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe(enabledColor);
-      expect(await scroll.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(width <= 640);
+      expect(await scroll.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(width <= 641);
       if (width <= 390) {
         const order = row.getByRole('combobox', { name: '字序' }); await order.selectOption('CDAB');
         const selectBox = await order.boundingBox(), saveBox = await row.getByRole('button', { name: '儲存字序' }).boundingBox();
@@ -268,7 +267,7 @@ for (const width of [320, 390, 768, 1001, 1280, 1440]) {
     await cadence.scrollIntoViewIfNeeded();
     const cellBox = await cadence.boundingBox();
     const metrics = await scroll.evaluate(element => ({ scroll: element.scrollWidth, client: element.clientWidth, tracks: getComputedStyle(element.querySelector('table')!).gridTemplateColumns, cells: [...element.querySelectorAll('tbody tr:first-child td')].map(cell => ({ name: cell.getAttribute('data-column') ?? cell.getAttribute('data-testid'), width: cell.getBoundingClientRect().width, scroll: cell.scrollWidth, client: cell.clientWidth })) }));
-    if (width <= 640) expect(metrics.scroll, JSON.stringify(metrics)).toBeGreaterThan(metrics.client);
+    if (width <= 1024) expect(metrics.scroll, JSON.stringify(metrics)).toBeGreaterThan(metrics.client);
     else expect(metrics.scroll, JSON.stringify(metrics)).toBeLessThanOrEqual(metrics.client);
     for (const control of await cadence.locator('input, select').all()) {
       const box = await control.boundingBox();
@@ -283,6 +282,6 @@ for (const width of [320, 390, 768, 1001, 1280, 1440]) {
     const orderMetrics = await row.evaluate(element => ({ tracks: getComputedStyle(element.closest('table')!).gridTemplateColumns, cells: [...element.querySelectorAll('td')].map(cell => ({ name: cell.getAttribute('data-column') ?? cell.getAttribute('data-testid'), width: cell.getBoundingClientRect().width })) }));
     expect(selectBox!.width, JSON.stringify(orderMetrics)).toBeGreaterThanOrEqual(60);
     expect(saveBox!.x + saveBox!.width).toBeLessThanOrEqual(orderCellBox!.x + orderCellBox!.width);
-    expect(await scroll.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(width <= 640);
+    expect(await scroll.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(width <= 1024);
   });
 }

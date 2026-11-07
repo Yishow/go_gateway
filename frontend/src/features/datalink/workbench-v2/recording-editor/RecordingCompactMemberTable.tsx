@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ParameterHelp } from '../components/ParameterHelp';
 import type { GroupCandidate } from '../state/writeGroup/candidates';
@@ -28,7 +28,26 @@ export function RecordingCompactMemberTable({ rows, total, query, setQuery, prob
   const { t } = useTranslation('workbench-v2');
   const { t: text } = useTranslation('recording-editor');
   const requiredHint = useId();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [hasHiddenColumns, setHasHiddenColumns] = useState(false);
   const [sort, setSort] = useState<{ column: SortColumn; direction: 'ascending' | 'descending' }>({ column: 'addressOnly', direction: 'ascending' });
+  useEffect(() => {
+    const region = scrollRef.current;
+    if (!region) return;
+    const update = () => setHasHiddenColumns(region.scrollWidth > region.clientWidth);
+    if (typeof ResizeObserver === 'undefined') {
+      update();
+      window.addEventListener('resize', update);
+      const observer = typeof MutationObserver === 'undefined' ? null : new MutationObserver(update);
+      observer?.observe(region, { childList: true, subtree: true, characterData: true, attributes: true });
+      return () => { observer?.disconnect(); window.removeEventListener('resize', update); };
+    }
+    const observer = new ResizeObserver(update);
+    observer.observe(region);
+    const table = region.querySelector('table');
+    if (table) observer.observe(table);
+    return () => observer.disconnect();
+  }, []);
   const observedOrders = useSyncExternalStore(pointOrderSort?.port.subscribe ?? noSubscribe, () => pointOrderSort?.port.observations?.() ?? noObservations, () => noObservations);
   const orderedRows = useMemo(() => {
     const observed = new Map(observedOrders.map(({ scope, entry }) => [JSON.stringify([scope.workspace_id, scope.device_id, scope.point_id]), entry]));
@@ -72,8 +91,15 @@ export function RecordingCompactMemberTable({ rows, total, query, setQuery, prob
         <span>{text('compact.orderInfo')}</span><ParameterHelp compact help="point.order" /></div></div>
     {!metadataAtDestination && metadataStatus !== 'exists' && <div className="recording-compact-members__metadata"><p role="status" data-testid="group-member-metadata-note">{metadataStatus === 'failed' ? text('compact.metadataFailed') : t(`step4.group.members.metadata_${metadataStatus}`)}</p>
       {metadataStatus === 'failed' && onRetryMetadata && <button type="button" className="gw-secondary" onClick={onRetryMetadata} data-testid="group-metadata-retry">{t('step4.group.retry')}</button>}</div>}
-    {rows.length > 0 && <p className="recording-compact-members__horizontal-hint">{text('compact.horizontalHint')}</p>}
-    <div className="recording-compact-members__scroll recording-selected-table-scroll" role="region" aria-label={t('step4.group.members.region')} tabIndex={0}>
+    {rows.length > 0 && hasHiddenColumns && <p className="recording-compact-members__horizontal-hint">{text('compact.horizontalHint')}</p>}
+    <div ref={scrollRef} className="recording-compact-members__scroll recording-selected-table-scroll" role="region" aria-label={t('step4.group.members.region')} tabIndex={0}
+      onKeyDown={event => {
+        const region = event.currentTarget;
+        if (event.target !== region || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey ||
+            region.scrollWidth <= region.clientWidth || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+        event.preventDefault();
+        region.scrollBy({ left: event.key === 'ArrowRight' ? 48 : -48 });
+      }}>
       <table><thead><tr>{(['device', 'pointOnly', 'addressOnly', 'wordOrder', 'dataType', ...(renderCalculation ? ['calculation', 'interval'] as const : []), 'actions'] as const).map(key => <th key={key} scope="col" data-column={key} aria-sort={key !== 'actions' && sort.column === key ? sort.direction : undefined}>
         {key === 'actions' ? text('compact.actions') : <button type="button" className="recording-compact-members__sort" disabled={nameLocked} onClick={() => toggleSort(key)}>{text(`compact.${key}`)}<span aria-hidden="true">{sort.column === key ? sort.direction === 'ascending' ? '▲' : '▼' : '↕'}</span></button>}
       </th>)}</tr></thead>
@@ -81,7 +107,7 @@ export function RecordingCompactMemberTable({ rows, total, query, setQuery, prob
           if (!member) return null;
           const describedBy = problem ? `group-member-problem-${candidate.key}` : undefined;
           return <tr key={candidate.key} data-testid={`group-member-row-${candidate.point_id}`} data-problem={problem ?? ''}>
-            <td data-column="device" title={candidate.device_name}>{candidate.device_name}</td>
+            <td data-column="device" title={candidate.device_name}>{candidate.device_name}<small className="recording-compact-members__device-address" aria-hidden="true">{candidate.address}</small></td>
             <td data-column="pointOnly">{renderName?.(candidate) ?? <strong>{candidate.label}</strong>}
               {problem && <p id={describedBy} role="alert" data-testid={`group-member-problem-${candidate.point_id}`} className="recording-compact-members__problem">{t(`step4.group.members.problem_${problem.replace('-', '_')}`)}</p>}
             </td>

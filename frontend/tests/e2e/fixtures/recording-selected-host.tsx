@@ -27,8 +27,12 @@ import '@fontsource/jetbrains-mono/400.css';
 
 const parameters = new URLSearchParams(window.location.search);
 await i18n.changeLanguage(parameters.get('lang') === 'en' ? 'en' : 'zh-TW'); document.documentElement.classList.add(parameters.get('theme') === 'light' ? 'light' : 'dark');
+const samePointOnDevices = parameters.has('samepoint');
 const candidates: GroupCandidate[] = Array.from({ length: 32 }, (_, i) => ({ key: `P${i}|T${i}`, device_id: 'D', point_id: `P${i}`, tag_id: `T${i}`,
-  tag_key: `tag${i}`, label: `TAG_${i} (D${i})`, device_name: parameters.has('longdevice') && i === 0 ? 'MC Building North' : 'MC', address: `D${i}`, target_type: i === 0 ? 'float32' : 'int16' }));
+  tag_key: `tag${i}`, label: samePointOnDevices && i < 2 ? 'Power (D0)' : `TAG_${i} (D${i})`,
+  device_name: samePointOnDevices && i < 2 ? `MC ${i === 0 ? 'A' : 'B'}` : parameters.has('longdevice') && i === 0 ? 'MC Building North' : 'MC',
+  address: samePointOnDevices && i === 1 ? 'D0' : `D${i}`, target_type: i === 0 ? 'float32' : 'int16',
+  ...(samePointOnDevices && i === 1 ? { device_id: 'D2' } : {}) }));
 const mixed = parameters.has('mixed');
 const initial: EditorMember[] = candidates.map((candidate, i) => ({ key: candidate.key, device_id: candidate.device_id, point_id: candidate.point_id,
   tag_id: candidate.tag_id, entity_key: '', target_column: `v_${i}`, required: true, ...(mixed ? { calculation: 'latest' as const, cadence: { interval: 15, unit: 'second' as const, alignment: 'utc_epoch' as const } } : {}) }));
@@ -75,7 +79,7 @@ function Host() {
     <div className="recording-editor-simple"><RecordingEditorLayout presentation="simple" memberCount={members.length} selectedScope={selectedScope} selectedScopeInHeading perPoint={false}
       identity={<GroupIdentityFields section="name" draft={draft} readonly={false} locked={false} onChange={patch => setDraft(current => ({ ...current, ...patch }))} onStorageStrategy={() => undefined} />}
       sources={<RecordingPointSelection scope="W/G" workspaceId="W" candidates={rows} members={members} onChange={setMembers} disabled={false}
-        devices={[{ id: 'D', name: 'MC' }]} deviceSource={{ name, pointOrder, submit: async () => { throw new Error('Source creation is unavailable in this fixture'); }, inspect: async () => undefined, observations: () => [] }}
+        devices={samePointOnDevices ? [{ id: 'D', name: 'MC A' }, { id: 'D2', name: 'MC B' }] : [{ id: 'D', name: 'MC' }]} deviceSource={{ name, pointOrder, submit: async () => { throw new Error('Source creation is unavailable in this fixture'); }, inspect: async () => undefined, observations: () => [] }}
         onDiscovery={observation => setRows([...observation.value.candidates])}
         renderMembers={actions => <RecordingSelectedMembers {...actions} presentation="simple" managed scopeInHeading onScopeChange={setSelectedScope} candidates={rows} members={members} columns={initial.map((member, index) => ({ name: member.target_column, type: index === 0 ? 'REAL' : 'INTEGER', nullable: true, primary_key: false }))} metadataStatus="exists"
           suggestions={{ assignments: {}, unmatched: [] }} issues={[]} showEntityKey={showEntityKey} disabled={false} onChange={setMembers}
