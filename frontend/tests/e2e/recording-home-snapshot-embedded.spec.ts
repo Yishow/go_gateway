@@ -60,6 +60,13 @@ test.describe('Recording home real embedded 20-device / 2000-point snapshots', (
       await expect(page.getByTestId('home-source-observation')).toHaveAttribute('data-source-status', 'fresh');
       await drain();
     };
+    const discardUnsavedRecording = async () => {
+      const confirmation = page.getByRole('alertdialog', { name: 'Leave this recording?', exact: true });
+      await expect(confirmation).toBeVisible();
+      await expect(page.getByTestId('group-editor')).toBeVisible();
+      await confirmation.getByRole('button', { name: 'Discard unsaved fields and leave', exact: true }).click();
+      await expect(confirmation).toHaveCount(0);
+    };
     const checkpoint = () => ({ database: fixture.snapshot(), requests: requests.length, compact: compactReplies.length });
     const finishSegment = async (name: string, before: ReturnType<typeof checkpoint>, compactCount: number, enforceReadonly = true) => {
       await drain(); const after = fixture.snapshot();
@@ -93,6 +100,7 @@ test.describe('Recording home real embedded 20-device / 2000-point snapshots', (
 
       phase = 'warm-editor-return'; before = checkpoint();
       await page.getByRole('button', { name: 'Back to overview', exact: true }).click();
+      await discardUnsavedRecording();
       await settleHome(); await finishSegment(phase, before, 1);
       await expect(page).toHaveURL(/\/studio\/v2\?view=recordings#snapshot$/);
       await page.screenshot({ path: testInfo.outputPath('warm-return.png'), fullPage: true });
@@ -101,7 +109,8 @@ test.describe('Recording home real embedded 20-device / 2000-point snapshots', (
       await page.goBack(); await expect(page.getByTestId('group-editor')).toBeVisible();
       await drain(); await finishSegment(phase, before, 0, false);
       phase = 'warm-history-forward'; before = checkpoint();
-      await page.goForward(); await settleHome(); await finishSegment(phase, before, 1);
+      await page.goForward(); await discardUnsavedRecording();
+      await settleHome(); await finishSegment(phase, before, 1);
 
       // Home remains mounted while a source modal opens. Close is not a route return.
       // Source discovery is isolated; only closing the settled modal is a zero-write interval.

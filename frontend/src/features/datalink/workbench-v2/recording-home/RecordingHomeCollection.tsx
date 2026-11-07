@@ -1,3 +1,4 @@
+import { watchHomeReturnFocus } from './recordingHomeReturnFocus';
 import { eligibleFocusTarget } from '@/utils/returnFocus';
 import { RecordingHomeResultFacts } from './RecordingHomeResultFacts';
 import type { recordingHomeResultSummary } from './recordingHomeResultSummary';
@@ -16,6 +17,8 @@ export interface RecordingHomeCollectionProps {
   guidance: RecordingHomeGuidance; pendingDevices?: readonly string[]; summaries?: Readonly<Record<string, ReturnType<typeof recordingHomeResultSummary>>>; observedIds: readonly string[]; filterObservedIds?: readonly string[]; unverifiedObserved: boolean; onRecheck: () => void; sourcesAvailable: boolean; restored: HomePresentation;
   /** False while the first-load reading state hides the collection; restore waits so focus can land. */
   presentationReady?: boolean;
+  /** Keep the current return-focus ticket only while initial home reads can change layout. */
+  returnLayoutPending?: boolean;
   /** Observed presentation can restore focus without asserting current source freshness. */
   observedSourcesAvailable?: boolean;
   /** Active anomaly counts read by the route; absent means the status is unknown. */
@@ -25,21 +28,34 @@ export interface RecordingHomeCollectionProps {
   onChange: (state: RecordingCollectionState) => void; onOpen: (id: string) => void; onOpenDevice: (id: string, kind: 'connection' | 'points') => void;
   onRemember: (scrollTop: number, focusId: string | null, page: number) => void;
 }
-export function RecordingHomeCollection({ groups, devices, state, guidance, summaries, pendingDevices = [], observedIds, filterObservedIds = observedIds, unverifiedObserved, onRecheck, sourcesAvailable, observedSourcesAvailable = sourcesAvailable, presentationReady = true, restored, anomalySummary, onAnomaliesClosed, onChange, onOpen, onOpenDevice, onRemember }: RecordingHomeCollectionProps) {
+export function RecordingHomeCollection({ groups, devices, state, guidance, summaries, pendingDevices = [], observedIds, filterObservedIds = observedIds, unverifiedObserved, onRecheck, sourcesAvailable, observedSourcesAvailable = sourcesAvailable, presentationReady = true, returnLayoutPending = false, restored, anomalySummary, onAnomaliesClosed, onChange, onOpen, onOpenDevice, onRemember }: RecordingHomeCollectionProps) {
   const { t } = useTranslation('recording-home');
   const records = recordingCollection(groups, devices, state, new Set(filterObservedIds)), devicePage = deviceCollection(devices, state);
   const current = state.mode === 'devices' ? devicePage : records;
   const [anomalyDevice, setAnomalyDevice] = useState<{ id: string; name: string } | null>(null);
   const root = useRef<HTMLElement>(null), panel = useRef<HTMLDivElement>(null), heading = useRef<HTMLHeadingElement>(null), didRestore = useRef(false);
+  const returnFocus = useRef<HTMLElement | null>(null), focusReveal = useRef<ReturnType<typeof watchHomeReturnFocus> | null>(null);
   useLayoutEffect(() => {
     if (didRestore.current || !observedSourcesAvailable || !presentationReady) return;
     didRestore.current = true;
     if (panel.current) {
       panel.current.scrollTop = Math.min(restored.scrollTop, Math.max(0, panel.current.scrollHeight - panel.current.clientHeight));
       const target = [...(root.current?.querySelectorAll<HTMLButtonElement>('[data-home-focus]') ?? [])].find(node => node.dataset.homeFocus === restored.focusId);
-      if (restored.focusId) (eligibleFocusTarget(target) ? target : eligibleFocusTarget(heading.current) ? heading.current : null)?.focus({ preventScroll: true });
+      if (restored.focusId) {
+        const focus = eligibleFocusTarget(target) ? target : eligibleFocusTarget(heading.current) ? heading.current : null;
+        if (focus) { focus.focus({ preventScroll: true }); returnFocus.current = focus; }
+      }
     }
   }, [observedSourcesAvailable, presentationReady, restored]);
+  useLayoutEffect(() => {
+    const target = returnFocus.current;
+    if (!target || !observedSourcesAvailable || !presentationReady) return;
+    const ticket = watchHomeReturnFocus(target); focusReveal.current = ticket;
+    return () => ticket.cancel();
+  }, [observedSourcesAvailable, presentationReady]);
+  useLayoutEffect(() => {
+    if (!returnLayoutPending) focusReveal.current?.finish();
+  }, [returnLayoutPending, observedSourcesAvailable, presentationReady]);
   const patch = (update: Partial<RecordingCollectionState>) => onChange({ ...state, ...update, page: 1 });
   const remember = (id: string | null) => onRemember(panel.current?.scrollTop ?? 0, id, current.page);
   const destinations = [...new Map(groups.map(group => [group.destination.connector_id, group.destination.database || group.destination.connector_id])).entries()];
@@ -79,7 +95,12 @@ export function RecordingHomeCollection({ groups, devices, state, guidance, summ
     {state.observedOnly && <div role="status"><p>{t(unverifiedObserved ? 'observationNeedsRefresh' : 'observedFilterBoundary')}</p>
       <button type="button" onClick={onRecheck}>{t('recheckVisible')}</button></div>}
     <div ref={panel} role="region" aria-label={t('tableRegion')} tabIndex={0} className="gw-table-scroll" data-testid="home-collection-scroll"
-      onScroll={() => remember(null)}>
+      onScroll={() => {
+        // Restoring scrollTop dispatches a later scroll event. Keep the actual restored focus
+        // so a subsequent Back/Forward visit does not replace its identity with null.
+        const focused = root.current?.querySelector<HTMLElement>('[data-home-focus]:focus');
+        remember(focused?.dataset.homeFocus ?? null);
+      }}>
       {current.empty ? <p role="status">{t(!sourcesAvailable ? 'unknown' : current.empty === 'empty' ? 'emptyCollection' : 'noResults')}</p> :
         <table data-testid="home-management-table" data-mode={state.mode}>
           <caption className="sr-only">{t(state.mode === 'devices' ? 'manageDevices' : 'saved')}</caption>

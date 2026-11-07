@@ -51,7 +51,8 @@
 .gw-recording-home .gw-filters label.gw-checkbox { grid-column: 1 / 4; display: flex; align-items: center; gap: var(--gw-space-xs); min-height: var(--gw-control-height); }
 .gw-recording-home .gw-filters input:not([type=checkbox]), .gw-recording-home .gw-filters select { width: 100%; min-width: 0; font-weight: 400; }
 .gw-recording-home input[type=checkbox] { width: 18px; height: 18px; min-height: 0; accent-color: var(--gw-accent); flex: none; }
-.gw-recording-home .gw-table-scroll { min-width: 0; max-width: 100%; max-height: 60dvh; overflow: auto; padding: var(--gw-space-2xs); border: 1px solid var(--gw-border); border-radius: var(--gw-radius-md); background: var(--gw-surface); }
+/* This panel restores an explicit scroll position; refreshed row facts must not re-anchor it. */
+.gw-recording-home .gw-table-scroll { overflow-anchor: none; min-width: 0; max-width: 100%; max-height: 60dvh; overflow: auto; padding: var(--gw-space-2xs); border: 1px solid var(--gw-border); border-radius: var(--gw-radius-md); background: var(--gw-surface); }
 .gw-recording-home table { width: 100%; min-width: 540px; border-collapse: collapse; table-layout: fixed; font-size: inherit; }
 .gw-recording-home th, .gw-recording-home td { padding: var(--gw-space-sm); text-align: start; vertical-align: top; overflow-wrap: anywhere; border-bottom: 1px solid var(--gw-border); }
 .gw-recording-home th { font-weight: 500; color: var(--gw-muted); }

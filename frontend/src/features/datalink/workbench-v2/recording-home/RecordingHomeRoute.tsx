@@ -86,6 +86,7 @@ function ScopedRecordingHome({ workspaceId, workspaceRevision, list, location, o
     collection={<><p data-testid="home-source-observation" data-source-status={sources.status} role={sources.status === 'error' ? 'alert' : 'status'}>{t(`sources.${sources.status}`)}</p><RecordingHomeCollection groups={groups} devices={devices} state={state} guidance={guidance}
       pendingDevices={facts.pendingDevices}
       summaries={summaries}
+      returnLayoutPending={sources.isFetching || home.loading || facts.loading || anomalySummary.isFetching}
       anomalySummary={anomalySummaryStatus(anomalySummary)} onAnomaliesClosed={() => { void anomalySummary.refetch(); }}
       observedIds={displayedObservedIds} filterObservedIds={filterObservedIds} unverifiedObserved={unverified.length > 0} onRecheck={() => { void Promise.all([home.retryDetails(), facts.retry()]); }}
       sourcesAvailable={sources.fresh} observedSourcesAvailable={Boolean(sources.observed)} presentationReady={!settling} restored={restored}

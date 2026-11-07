@@ -19,10 +19,12 @@ for (const count of [60, 1000]) test.describe(`${count} matching recordings, rea
     expect(returning.workspaceId).toBe('A');
     await expect(observation(page)).toHaveAttribute('data-source-status', 'refreshing');
     await expectFiltersRestored(page, count); await expect(trigger).toBeFocused();
+    await expect(trigger).toBeInViewport({ ratio: 1 });
     await expect.poll(async () => Math.abs(await page.getByTestId('home-collection-scroll').evaluate(element => element.scrollTop) - scroll)).toBeLessThanOrEqual(1);
     expect(sourceCount(api)).toBe(compactBefore + 1);
     await page.screenshot({ path: info.outputPath(`return-refreshing-${count}-MOCK.png`), fullPage: true });
     held.release(); await readyHome(page, api); await assertPageDemand(page, api, checkpoint, true);
+    await expect(trigger).toBeInViewport({ ratio: 1 });
     expect(sourceCount(api)).toBe(compactBefore + 1);
     // Router history is exercised, not page.goto/reload or a standalone component mount.
     api.setPhase('editor'); await page.goBack(); await expect(page).toHaveURL(editorURL);
@@ -31,8 +33,10 @@ for (const count of [60, 1000]) test.describe(`${count} matching recordings, rea
     const forward = api.holdNext(); api.setPhase('home'); await page.goForward(); await forward.entered;
     await expect(observation(page)).toHaveAttribute('data-source-status', 'refreshing');
     await expectFiltersRestored(page, count); await expect(trigger).toBeFocused();
+    await expect(trigger).toBeInViewport({ ratio: 1 });
     await expect.poll(async () => Math.abs(await page.getByTestId('home-collection-scroll').evaluate(element => element.scrollTop) - scroll)).toBeLessThanOrEqual(1);
     forward.release(); await readyHome(page, api); await assertPageDemand(page, api, checkpoint, true);
+    await expect(trigger).toBeInViewport({ ratio: 1 });
     expect(sourceCount(api)).toBe(compactBefore + 1); expect(new URL(page.url()).hash).toBe('#snapshot-proof');
     expect(api.ledger.filter(call => call.mutation)).toEqual([]);
   });

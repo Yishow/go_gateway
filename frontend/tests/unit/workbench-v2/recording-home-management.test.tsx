@@ -7,7 +7,7 @@ import { readHomePresentation, rememberHomePresentation } from '@/features/datal
 import { recordingHomeGuidance } from '@/features/datalink/workbench-v2/recording-home/recordingHomeGuidance';
 import { fixture, group } from './recording-home-guidance-fixtures';
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string, value?: Record<string, unknown>) => key === 'pageOf' ? `${value?.page}/${value?.pages} (${value?.count})` : key === 'recordPointCount' ? `${value?.count} recording points` : key }) }));
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 const devices: HomeDeviceSummary[] = Array.from({ length: 100 }, (_, index) => ({ id: `D${index}`, name: `Device ${index}`, protocol: 'mc_3e', availability: 'available' }));
 const groups = Array.from({ length: 300 }, (_, index) => ({ ...group(`G${String(index).padStart(3, '0')}`, index % 3 === 0 ? 'draft' : 'running'), name: `Recording ${String(index).padStart(3, '0')}`,
   members: [{ ...group('G').members[0], device_id: `D${index % 100}` }], destination: { ...group('G').destination, table_name: `table_${index}` } }));
@@ -69,6 +69,44 @@ describe('compact home management', () => {
     view.rerender(<RecordingHomeCollection {...props} sourcesAvailable />);
     expect(screen.getByTestId('home-page-status')).toHaveTextContent('2/2 (28)');
     expect(within(screen.getByText('Recording 026').closest('tr')!).getByRole('button', { name: 'openRecord' })).toHaveFocus(); expect(panel.scrollTop).toBe(80);
+  });
+  it('retains restored focus when the browser emits its restoration scroll event', () => {
+    const state = { ...initialCollectionState(), page: 2 }, onRemember = vi.fn();
+    const restored = { state, workspaceRevision: 'W2', scrollTop: 80, focusId: 'record-G026' };
+    const props = { groups, devices, state, guidance, observedIds: [], unverifiedObserved: false, restored,
+      onChange: vi.fn(), onOpen: vi.fn(), onOpenDevice: vi.fn(), onRemember, onRecheck: vi.fn() };
+    const view = render(<RecordingHomeCollection {...props} sourcesAvailable={false} />);
+    const panel = screen.getByTestId('home-collection-scroll');
+    Object.defineProperty(panel, 'scrollHeight', { value: 500 }); Object.defineProperty(panel, 'clientHeight', { value: 100 });
+    view.rerender(<RecordingHomeCollection {...props} sourcesAvailable />);
+    const trigger = document.querySelector('[data-home-focus="record-G026"]');
+    expect(trigger).toHaveFocus(); expect(panel.scrollTop).toBe(80);
+    // Browsers dispatch scroll after the layout-effect scrollTop assignment and focus restoration.
+    fireEvent.scroll(panel);
+    expect(onRemember).toHaveBeenLastCalledWith(80, 'record-G026', 2);
+    expect(trigger).toHaveFocus();
+    // A user scroll after moving focus away must not resurrect the old recording focus.
+    screen.getByLabelText('keyword').focus(); panel.scrollTop = 120; fireEvent.scroll(panel);
+    expect(onRemember).toHaveBeenLastCalledWith(120, null, 2);
+    expect(screen.getByLabelText('keyword')).toHaveFocus();
+  });
+  it.each([[783, 115], [-52, -60], [100, 0]])('reveals restored focus at viewport y=%i by moving only the document', (top, movement) => {
+    vi.stubGlobal('innerHeight', 720);
+    const scroll = vi.spyOn(window, 'scrollBy').mockImplementation((...args: unknown[]) => { top -= (args[0] as { top?: number }).top ?? 0; });
+    const state = { ...initialCollectionState(), page: 2 };
+    const props = { groups, devices, state, guidance, observedIds: [], unverifiedObserved: false,
+      restored: { state, workspaceRevision: 'W2', scrollTop: 80, focusId: 'record-G026' },
+      onChange: vi.fn(), onOpen: vi.fn(), onOpenDevice: vi.fn(), onRemember: vi.fn(), onRecheck: vi.fn() };
+    const view = render(<RecordingHomeCollection {...props} sourcesAvailable={false} />);
+    const panel = screen.getByTestId('home-collection-scroll');
+    Object.defineProperty(panel, 'scrollHeight', { value: 500 }); Object.defineProperty(panel, 'clientHeight', { value: 100 });
+    const trigger = document.querySelector<HTMLElement>('[data-home-focus="record-G026"]')!;
+    vi.spyOn(trigger, 'getBoundingClientRect').mockImplementation(() => ({ top, bottom: top + 44, left: 0, right: 80,
+      width: 80, height: 44, x: 0, y: top, toJSON: () => ({}) }));
+    view.rerender(<RecordingHomeCollection {...props} sourcesAvailable />);
+    expect(trigger).toHaveFocus(); expect(panel.scrollTop).toBe(80);
+    if (movement) expect(scroll).toHaveBeenCalledExactlyOnceWith({ top: movement, behavior: 'instant' });
+    else expect(scroll).not.toHaveBeenCalled();
   });
   it('does not resurrect a removed focus target or describe stale observations as zero faults', () => {
     const state = initialCollectionState(); render(<RecordingHomeCollection groups={groups.slice(0, 1)} devices={devices} state={{ ...state, observedOnly: true }} guidance={guidance}
