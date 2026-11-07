@@ -44,6 +44,12 @@
 .gw-memory-map-strip > [data-state=unconfirmed] { border-style: dashed; background: var(--gw-surface); }
 .gw-memory-map-strip > [data-selected=true] { outline: 2px solid var(--gw-focus); outline-offset: 1px; z-index: 1; }
 .gw-modal .gw-memory-address-map input[type=range] { width: 100%; min-width: 0; min-height: 28px; padding: 0; accent-color: var(--gw-accent); }
+/* Light Chromium's native inactive track misses 3:1. Keep native painting and interaction,
+   but give its 8px track a muted boundary; center the native 16px thumb in its 6px content. */
+html:not(.dark) .gw-modal .gw-memory-address-map input[type=range]::-webkit-slider-runnable-track {
+  height: 8px; box-sizing: border-box; border: 1px solid var(--gw-muted); border-radius: 4px;
+}
+html:not(.dark) .gw-modal .gw-memory-address-map input[type=range]::-webkit-slider-thumb { margin-top: -5px; }
 .gw-memory-map-ends { color: var(--gw-muted); font-family: var(--gw-font-mono); font-size: 12px; }
 .gw-memory-detail { padding: 12px; border: 1px solid var(--gw-border); border-radius: var(--gw-radius-md); background: var(--gw-surface); }
 .gw-memory-detail-navigation { display: flex; gap: 4px; }
