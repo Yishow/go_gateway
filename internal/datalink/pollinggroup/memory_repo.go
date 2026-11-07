@@ -35,6 +35,13 @@ func (r *MemoryRepository) Create(ctx context.Context, group *schema.PollingGrou
 		return fmt.Errorf("輪詢群組 ID 已存在: %s", group.ID)
 	}
 
+	// Match the SQL name UNIQUE constraint while holding the same mutation lock.
+	for _, existing := range r.groups {
+		if existing.Name == group.Name {
+			return fmt.Errorf("輪詢群組名稱已存在: %s", group.Name)
+		}
+	}
+
 	if group.OwnerDeviceID != nil {
 		for _, existing := range r.groups {
 			if existing.OwnerDeviceID != nil && *existing.OwnerDeviceID == *group.OwnerDeviceID {
@@ -57,6 +64,12 @@ func (r *MemoryRepository) Update(ctx context.Context, group *schema.PollingGrou
 	existing, exists := r.groups[group.ID]
 	if !exists {
 		return fmt.Errorf("輪詢群組不存在: %s", group.ID)
+	}
+
+	for id, other := range r.groups {
+		if id != group.ID && other.Name == group.Name {
+			return fmt.Errorf("輪詢群組名稱已存在: %s", group.Name)
+		}
 	}
 
 	groupCopy := *group

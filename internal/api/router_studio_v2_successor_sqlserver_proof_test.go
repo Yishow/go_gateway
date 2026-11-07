@@ -15,7 +15,7 @@ func TestSQLServerSuccessorActivationRejectsForeignOrMissingProof(t *testing.T) 
 		t.Run(family, func(t *testing.T) {
 			for _, mode := range []workspace.WriteGroupStorageMode{"plain", "native_monthly"} {
 				t.Run(string(mode), func(t *testing.T) {
-					for _, field := range []string{"missing_ledger", "failed_ledger", "foreign_scope", "foreign_token_schema", "foreign_connector", "stale_connector", "corrupted_lineage", "stale_source", "stale_target"} {
+					for _, field := range []string{"missing_ledger", "failed_ledger", "foreign_scope", "foreign_token_schema", "foreign_connector", "stale_connector", "stale_lineage", "corrupted_lineage", "stale_source", "stale_target"} {
 						t.Run(field, func(t *testing.T) {
 							r := newSQLServerSuccessorRig(t, mode, false, true)
 							f := r.activationAPI()
@@ -34,8 +34,10 @@ func TestSQLServerSuccessorActivationRejectsForeignOrMissingProof(t *testing.T) 
 								query = `UPDATE managed_schema_preview_tokens SET connector_id='connector-A' WHERE plan_id=?`
 							case "stale_connector":
 								query = `UPDATE database_connectors SET identity_revision='stale' WHERE id='connector-B' AND ?<>''`
-							case "corrupted_lineage":
+							case "stale_lineage":
 								query = `UPDATE write_group_lineages SET revision=revision+1 WHERE reserved_group_id=?`
+							case "corrupted_lineage":
+								query = `DELETE FROM write_group_generations WHERE group_id=?`
 							case "stale_source":
 								query = `UPDATE write_groups SET revision='stale' WHERE id=(SELECT predecessor_group_id FROM write_group_successor_preparations WHERE group_id=?)`
 							case "stale_target":
@@ -55,9 +57,12 @@ func TestSQLServerSuccessorActivationRejectsForeignOrMissingProof(t *testing.T) 
 							external := r.targetState(t)
 							response := performJSONRequest(t, r.f.router, http.MethodPost, writeGroupsPath+"/"+r.groupID+"/successor", confirmation)
 							require.GreaterOrEqual(t, response.Code, 400, response.Body.String())
-							if field == "corrupted_lineage" {
-								require.Equal(t, http.StatusInternalServerError, response.Code)
-							} else {
+							switch field {
+							case "corrupted_lineage":
+								require.Equal(t, http.StatusInternalServerError, response.Code, response.Body.String())
+							case "stale_lineage":
+								require.Equal(t, http.StatusConflict, response.Code, response.Body.String())
+							default:
 								require.Less(t, response.Code, 500, response.Body.String())
 							}
 							require.Equal(t, before, sqlServerSuccessorLocalState(t, r.f.db))

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"testing"
 	"time"
@@ -98,6 +99,9 @@ func fetchMCRegisters(ctx context.Context, ip string, port int, startD uint32, c
 
 // TestRealDevice_ModbusAndMCProtocol_TelemetryPipeline 對真實設備執行端到端遙測管線驗收。
 func TestRealDevice_ModbusAndMCProtocol_TelemetryPipeline(t *testing.T) {
+	if !realDeviceIntegrationEnabled(os.Getenv("GATEWAY_REAL_DEVICE_INTEGRATION")) {
+		t.Skip("NOT RUN: set GATEWAY_REAL_DEVICE_INTEGRATION=1 only after authorizing the physical PLC target")
+	}
 	ip := "100.76.76.1"
 	modbusPort := 502
 	mcPort := 6000
@@ -257,4 +261,18 @@ func TestRealDevice_ModbusAndMCProtocol_TelemetryPipeline(t *testing.T) {
 		t.Fatalf("去重回執未生效: %v", err)
 	}
 	t.Logf("✓ 實體 Outbox 佇列與去重回執確認成功 (HasReceipt: true)")
+}
+
+// An ordinary full suite must never probe a physical PLC implicitly.
+func realDeviceIntegrationEnabled(value string) bool { return value == "1" }
+
+func TestRealDeviceIntegrationRequiresExplicitOptIn(t *testing.T) {
+	for _, value := range []string{"", "0", "true", "yes", " 1", "1 "} {
+		if realDeviceIntegrationEnabled(value) {
+			t.Errorf("unexpected physical-device opt-in for %q", value)
+		}
+	}
+	if !realDeviceIntegrationEnabled("1") {
+		t.Fatal("explicit opt-in should enable hardware acceptance")
+	}
 }

@@ -157,14 +157,6 @@ func TestPollingGroupHandler_Create(t *testing.T) {
 }
 
 /**
- * TestPollingGroupHandler_Create_DuplicateName 測試建立重複名稱應失敗
- */
-func TestPollingGroupHandler_Create_DuplicateName(t *testing.T) {
-	// TODO: 重複名稱驗證功能尚未在儲存庫/服務層實現
-	t.Skip("重複名稱驗證功能尚未實現，需要在 Repository 和 Service 層添加 ExistsByName 方法")
-}
-
-/**
  * TestPollingGroupHandler_Update 測試更新輪詢群組
  */
 func TestPollingGroupHandler_Update(t *testing.T) {

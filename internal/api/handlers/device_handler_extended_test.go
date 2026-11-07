@@ -52,51 +52,6 @@ func setupDeviceRouterWithExtended() *gin.Engine {
 }
 
 /**
- * TestDeviceHandler_Activate 測試啟用設備
- */
-func TestDeviceHandler_Activate(t *testing.T) {
-	// TODO: 此測試需要實際的設備連線才能通過
-	// Activate 方法會先測試連線，在沒有實際設備的測試環境中會失敗
-	t.Skip("需要 Mock ConnectionManager 以避免實際連線測試")
-
-	r := setupDeviceRouterWithExtended()
-
-	// 先建立一個設備
-	newDevice := device.CreateDeviceRequest{
-		Name:     "測試啟用設備",
-		Protocol: "modbus_tcp",
-		ConnectionConfig: map[string]any{
-			"host":     "127.0.0.1",
-			"port":     502,
-			"slave_id": 1,
-		},
-	}
-
-	body, _ := json.Marshal(newDevice)
-	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusCreated, w.Code)
-
-	var createResp map[string]any
-	json.Unmarshal(w.Body.Bytes(), &createResp)
-	deviceID := createResp["data"].(map[string]any)["id"].(string)
-
-	// 啟用設備
-	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/"+deviceID+"/activate", http.NoBody)
-	w = httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var activateResp map[string]any
-	json.Unmarshal(w.Body.Bytes(), &activateResp)
-	assert.True(t, activateResp["success"].(bool))
-}
-
-/**
  * TestDeviceHandler_Activate_NotFound 測試啟用不存在的設備
  */
 func TestDeviceHandler_Activate_NotFound(t *testing.T) {
@@ -621,55 +576,6 @@ func TestDeviceHandler_TestConnectionBatch_InvalidDeviceIDs(t *testing.T) {
 		assert.False(t, resultMap["success"].(bool))
 		assert.NotEmpty(t, resultMap["error"])
 	}
-}
-
-/**
- * TestDeviceHandler_ActivateThenDisable 測試啟用後停用設備
- */
-func TestDeviceHandler_ActivateThenDisable(t *testing.T) {
-	// TODO: 此測試需要實際的設備連線才能通過
-	t.Skip("需要 Mock ConnectionManager 以避免實際連線測試")
-
-	r := setupDeviceRouterWithExtended()
-
-	// 建立設備
-	newDevice := device.CreateDeviceRequest{
-		Name:     "測試循環設備",
-		Protocol: "modbus_tcp",
-		ConnectionConfig: map[string]any{
-			"host":     "127.0.0.1",
-			"port":     502,
-			"slave_id": 1,
-		},
-	}
-
-	body, _ := json.Marshal(newDevice)
-	req, _ := http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	var createResp map[string]any
-	json.Unmarshal(w.Body.Bytes(), &createResp)
-	deviceID := createResp["data"].(map[string]any)["id"].(string)
-
-	// 啟用設備
-	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/"+deviceID+"/activate", http.NoBody)
-	w = httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	// 停用設備
-	req, _ = http.NewRequestWithContext(t.Context(), "POST", "/datalink/devices/"+deviceID+"/disable", http.NoBody)
-	w = httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	var response map[string]any
-	json.Unmarshal(w.Body.Bytes(), &response)
-	assert.True(t, response["success"].(bool))
 }
 
 /**
