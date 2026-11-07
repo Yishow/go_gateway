@@ -222,7 +222,7 @@ it('actual home retains a SQL fact through source faults and failed refresh with
 });
 
 
-it('warm home return keeps observed devices, filter and page during refresh and failure without fresh evidence', async () => {
+it('warm home return keeps observed devices and the device filter during refresh and failure without fresh evidence', async () => {
   const devices = Array.from({ length: 30 }, (_, index) => ({ id: `D${String(index).padStart(2, '0')}`,
     name: `Observed device ${String(index).padStart(2, '0')}`, protocol: 'modbus_tcp', availability: 'unknown' }));
   vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({ ...workspace, ordered_device_ids: devices.map(device => device.id) });
@@ -232,25 +232,22 @@ it('warm home return keeps observed devices, filter and page during refresh and 
     locatorIntent={{ kind: 'absent' }} presentationLocation={{ search: '?view=recordings', hash: '' }} /></QueryClientProvider>;
   const first = render(content);
   await screen.findByRole('option', { name: 'Observed device 29' });
-  fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
-  fireEvent.change(screen.getByLabelText('deviceKeyword'), { target: { value: 'Observed device' } });
-  fireEvent.click(screen.getByRole('button', { name: 'next' }));
-  expect(within(screen.getByTestId('home-management-table')).getByText('Observed device 29')).toBeInTheDocument();
-  expect(within(screen.getByTestId('home-management-table')).queryByText('Observed device 00')).not.toBeInTheDocument();
+  const strip = () => screen.getByRole('region', { name: 'deviceStatus.strip' });
+  fireEvent.change(screen.getByLabelText('deviceFilter'), { target: { value: 'D29' } });
+  expect(within(strip()).getByTestId('device-status-D29')).toHaveAttribute('aria-pressed', 'true');
   first.unmount();
   let rejectRefresh!: (reason: Error) => void;
   vi.mocked(recordingHomeSourcesAPI.read).mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectRefresh = reject; }));
   render(content);
   await waitFor(() => expect(screen.getByTestId('home-source-observation')).toHaveTextContent('sources.refreshing'));
-  expect(screen.getByLabelText('deviceKeyword')).toHaveValue('Observed device');
-  expect(within(screen.getByTestId('home-management-table')).getByText('Observed device 29')).toBeInTheDocument();
-  expect(within(screen.getByTestId('home-management-table')).queryByText('Observed device 00')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('deviceFilter')).toHaveValue('D29');
+  expect(within(strip()).getByText('Observed device 00')).toBeInTheDocument();
+  expect(within(strip()).getByTestId('device-status-D29')).toHaveAttribute('aria-pressed', 'true');
   expect(screen.queryByText('reason.missing_points')).not.toBeInTheDocument();
   await act(async () => rejectRefresh(new Error('PRIVATE-REFRESH-ERROR')));
   await waitFor(() => expect(screen.getByTestId('home-source-observation')).toHaveTextContent('sources.error'));
-  expect(screen.getByLabelText('deviceKeyword')).toHaveValue('Observed device');
-  expect(within(screen.getByTestId('home-management-table')).getByText('Observed device 29')).toBeInTheDocument();
-  expect(within(screen.getByTestId('home-management-table')).queryByText('Observed device 00')).not.toBeInTheDocument();
+  expect(screen.getByLabelText('deviceFilter')).toHaveValue('D29');
+  expect(within(strip()).getByText('Observed device 00')).toBeInTheDocument();
   expect(screen.queryByText('reason.missing_points')).not.toBeInTheDocument();
   expect(document.body.textContent).not.toContain('PRIVATE-REFRESH-ERROR');
   expect(recordingHomeSourcesAPI.read).toHaveBeenCalledTimes(2);
@@ -271,11 +268,8 @@ it.each(['API base URL', 'QueryClient'] as const)('isolates observed home and pr
   const view = render(content(firstClient));
   try {
     await screen.findByRole('option', { name: 'Previous context 29' });
-    fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
-    fireEvent.change(screen.getByLabelText('deviceKeyword'), { target: { value: 'Previous context' } });
-    fireEvent.click(screen.getByRole('button', { name: 'next' }));
-    expect(within(screen.getByTestId('home-management-table')).getByText('Previous context 29')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'previous' })).toBeEnabled();
+    fireEvent.change(screen.getByLabelText('keyword'), { target: { value: 'Previous context' } });
+    expect(within(screen.getByRole('region', { name: 'deviceStatus.strip' })).getByText('Previous context 00')).toBeInTheDocument();
     let resolveNext!: (value: Awaited<ReturnType<typeof recordingHomeSourcesAPI.read>>) => void;
     vi.mocked(recordingHomeSourcesAPI.read).mockImplementationOnce(() => new Promise(resolve => { resolveNext = resolve; }));
     if (change === 'API base URL') studioV2DatalinkApi.defaults.baseURL = '/different-backend/api/v1/datalink';
@@ -288,8 +282,6 @@ it.each(['API base URL', 'QueryClient'] as const)('isolates observed home and pr
     expect(screen.getByTestId('home-source-observation')).toHaveTextContent('sources.loading');
     expect(screen.queryByText(/Previous context/)).not.toBeInTheDocument();
     expect(screen.getByLabelText('keyword')).toHaveValue('');
-    expect(screen.getByRole('button', { name: 'recordingsTab' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'previous' })).toBeDisabled();
     await act(async () => resolveNext(emptySources('W')));
     await waitFor(() => expect(screen.getByTestId('home-source-observation')).toHaveTextContent('sources.fresh'));
     expect(screen.queryByText(/Previous context/)).not.toBeInTheDocument();

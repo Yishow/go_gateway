@@ -3,16 +3,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import i18n from '../../../src/i18n/config';
-import { RecordingHomeCollection } from '../../../src/features/datalink/workbench-v2/recording-home/RecordingHomeCollection';
+import { RecordingHomeDeviceStrip } from '../../../src/features/datalink/workbench-v2/recording-home/RecordingHomeDeviceStrip';
+import { AcquisitionAnomalyDialog } from '../../../src/features/datalink/workbench-v2/recording-home/AcquisitionAnomalyDialog';
 import { anomalySummaryStatus } from '../../../src/features/datalink/workbench-v2/recording-home/AcquisitionAnomalyButton';
-import { initialCollectionState, type HomeDeviceSummary } from '../../../src/features/datalink/workbench-v2/recording-home/recordingHomeCollections';
-import { recordingHomeGuidance } from '../../../src/features/datalink/workbench-v2/recording-home/recordingHomeGuidance';
+import type { HomeDeviceSummary } from '../../../src/features/datalink/workbench-v2/recording-home/recordingHomeCollections';
 import { useAcquisitionAnomalySummaryQuery } from '../../../src/hooks/datalink/useAcquisitionAnomalies';
 import { api } from '../../../src/services/datalinkClient';
-import { fixture, group } from '../../unit/workbench-v2/recording-home-guidance-fixtures';
 import '../../../src/index.css';
 import '../../../src/features/datalink/workbench-v2/styles/workbench-v2.css';
 import '../../../src/features/datalink/workbench-v2/recording-home/recording-home.css';
+import '../../../src/features/datalink/workbench-v2/recording-home/recordingHomeStatus.css';
 
 // Presentation evidence only. The Axios adapter rejects all non-fixture requests and all writes.
 await i18n.changeLanguage('zh-TW');
@@ -23,8 +23,6 @@ const devices: HomeDeviceSummary[] = [
   { id: 'MB', name: '模擬 Modbus 表頭', protocol: 'modbus_tcp', availability: 'available' },
   { id: 'NEW', name: '模擬新設備', protocol: 'modbus_tcp', availability: 'unknown' },
 ];
-const groups = [{ ...group('G1'), name: '模擬記錄', members: [{ ...group('G1').members[0], device_id: 'MC' }] }];
-const guidance = recordingHomeGuidance(fixture(devices.map(device => device.id), false, groups));
 const now = Date.now();
 const events = [
   { id: 12, device_id: 'MC', point_id: 'p5', point_name: '溫度', point_address: 'D5', kind: 'stale', state: 'active',
@@ -59,13 +57,13 @@ Object.assign(window, { acquisitionAnomalyFixtureLedger: ledger });
 const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
 function Host() {
-  const [state, setState] = useState(initialCollectionState);
+  const [device, setDevice] = useState<{ id: string; name: string } | null>(null);
   const summary = useAcquisitionAnomalySummaryQuery();
   return <main data-workbench-v2 className="gw-recording-home">
     <p data-testid="fixture-notice">驗證畫面 · 模擬 API 與資料 · 不連接設備或資料庫</p>
-    <RecordingHomeCollection groups={groups} devices={devices} state={state} guidance={guidance} observedIds={[]} unverifiedObserved={false}
-      sourcesAvailable restored={{ state, workspaceRevision: 'fixture', scrollTop: 0, focusId: null }} anomalySummary={anomalySummaryStatus(summary)}
-      onChange={setState} onOpen={() => undefined} onOpenDevice={() => undefined} onRemember={() => undefined} onRecheck={() => undefined} />
+    <RecordingHomeDeviceStrip devices={devices} observations={new Map()} selected="" now={Date.now()} onSelect={() => undefined} onOpenDevice={() => undefined}
+      anomalySummary={anomalySummaryStatus(summary)} onOpenAnomalies={item => setDevice({ id: item.id, name: item.name })} />
+    {device && <AcquisitionAnomalyDialog device={device} onClose={() => setDevice(null)} />}
   </main>;
 }
 

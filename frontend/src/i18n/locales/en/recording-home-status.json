@@ -14,8 +14,14 @@
     "lastUpdated": "Last updated {{time}}",
     "freshnessHelp": "About this observation",
     "resumeDraft": "Continue draft: {{name}}",
-    "resume": "Continue editing",
-    "states": { "collecting": "Collecting", "degraded": "Partly abnormal", "disconnected": "Disconnected", "idle": "Not collecting", "unavailable": "Status unavailable" },
+    "resume": "Continue setup",
+    "states": {
+      "collecting": "Collecting",
+      "degraded": "Partly abnormal",
+      "disconnected": "Disconnected",
+      "idle": "Not collecting",
+      "unavailable": "Status unavailable"
+    },
     "points": "{{healthy}}/{{total}} points healthy",
     "pointsUnknown": "Point status unavailable",
     "readUnknown": "Last read unavailable",
@@ -24,6 +30,32 @@
     "minutesAgo_one": "{{count}} minute ago",
     "minutesAgo_other": "{{count}} minutes ago",
     "hoursAgo_one": "{{count}} hour ago",
-    "hoursAgo_other": "{{count}} hours ago"
+    "hoursAgo_other": "{{count}} hours ago",
+    "tools": "Page tools",
+    "successRate": "{{rate}}% success",
+    "successRateUnknown": "Success rate unavailable",
+    "noWritesYet": "No writes yet",
+    "filterHint": "Select to filter recordings by this device; select again to clear",
+    "editNamed": "Connection for {{name}}",
+    "viewNamed": "Read points for {{name}}",
+    "nextStep": "Next step",
+    "drafts": "Unfinished drafts",
+    "draftState": "Draft · not enabled, not writing",
+    "moreDrafts": "{{count}} more drafts — filter the list below by Draft.",
+    "hints": {
+      "operation_recovery": "An operation has not been confirmed as finished. Open settings to check its result before making other changes.",
+      "delivery_attention": "Some recordings hit problems while writing to the database. Open settings to review write stages and logs.",
+      "source_attention": "Some recordings have source device or point problems. Open settings to review the sources.",
+      "evidence_unavailable": "Some status has not finished loading. Select Refresh to read it again.",
+      "evidence_unconfirmed": "Recordings whose status could not be confirmed are listed below with the reason.",
+      "draft_one": "{{count}} draft is not finished. Drafts do not write to the database; recording starts after its points and destination are set and it is enabled.",
+      "draft_other": "{{count}} drafts are not finished. Drafts do not write to the database; recording starts after their points and destination are set and they are enabled.",
+      "missing_devices": "Add a device first, then choose the points to record.",
+      "missing_points": "The device exists. Next, set the points to read.",
+      "missing_recordings": "Devices and points are ready. Create a recording and choose the points to write to the database.",
+      "recordings": "All recordings are set up. Review how each one is writing below."
+    },
+    "showAll": "Show all {{count}}",
+    "showLess": "Show less"
   }
 }

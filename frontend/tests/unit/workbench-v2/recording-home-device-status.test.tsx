@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { RecordingHomeRoute } from '@/features/datalink/workbench-v2/recording-home/RecordingHomeRoute';
+import { RecordingHomeSourceHost } from '@/features/datalink/workbench-v2/recording-home/RecordingHomeSourceHost';
 import { studioV2WorkspaceAPI } from '@/services/studioV2Workspace';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
 import { recordingHomeSourcesAPI } from '@/services/recordingHomeSources';
@@ -9,6 +10,8 @@ import { runtimeAPI } from '@/services/datalink';
 import { group } from './recording-home-guidance-fixtures';
 import { useRecordingHomeDeviceStatus } from '@/features/datalink/workbench-v2/recording-home/useRecordingHomeDeviceStatus';
 import { deriveDeviceConnectionState } from '@/features/datalink/workbench-v2/recording-home/deviceConnectionState';
+import { initialCollectionState } from '@/features/datalink/workbench-v2/recording-home/recordingHomeCollections';
+import { readHomePresentation, rememberHomePresentation } from '@/features/datalink/workbench-v2/recording-home/recordingHomePresentation';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('@/services/studioV2Workspace', async original => ({ ...await original<typeof import('@/services/studioV2Workspace')>(), studioV2WorkspaceAPI: { get: vi.fn() } }));
@@ -28,6 +31,70 @@ it('reads one workspace-wide runtime status on entering the visible home', async
   render(<QueryClientProvider client={client}><RecordingHomeRoute location={{ search: '?view=recordings', hash: '' }} /></QueryClientProvider>);
   await waitFor(() => expect(screen.getByTestId('home-source-observation')).toHaveAttribute('data-source-status', 'fresh'));
   expect(getStatus).toHaveBeenCalledExactlyOnceWith();
+});
+
+it('opens an old device-mode presentation on the first recording page without the device keyword', async () => {
+  const groups = Array.from({ length: 51 }, (_, index) => group(`G${String(index).padStart(2, '0')}`, 'draft'));
+  vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({ id: 'W1', kind: 'single', status: 'empty', ordered_device_ids: [], created_at: '', updated_at: '' });
+  vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockResolvedValue({ workspace_id: 'W1', workspace_revision: 'W2', groups });
+  vi.mocked(recordingHomeSourcesAPI.read).mockResolvedValue({ workspace_id: 'W1', state: 'available', source_digest: 'a'.repeat(64), devices: [], candidates: [], excluded: [] });
+  vi.spyOn(runtimeAPI, 'getStatus').mockResolvedValue({ running: false, uptime_seconds: 0, collectors: [] });
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  rememberHomePresentation(client, 'W1', { state: { ...initialCollectionState(), mode: 'devices', keyword: 'device-only', page: 2, pageSize: 50 },
+    workspaceRevision: 'W2', scrollTop: 0, focusId: null });
+  render(<QueryClientProvider client={client}><RecordingHomeRoute location={{ search: '?view=recordings', hash: '' }} /></QueryClientProvider>);
+  await screen.findByLabelText('keyword');
+  expect(screen.getByLabelText('keyword')).toHaveValue('');
+  expect(screen.getByLabelText('pageSize')).toHaveValue('50');
+  const table = screen.getByTestId('home-management-table');
+  expect(within(table).getByText('Recording G00')).toBeInTheDocument();
+  expect(within(table).queryByText('Recording G50')).not.toBeInTheDocument();
+});
+
+it.each(['connection', 'points'] as const)('restores the %s action and table scroll after returning from a device card', async kind => {
+  const devices = Array.from({ length: 6 }, (_, index) => ({ id: `D${index}`, name: `Device ${index}`, protocol: 'mc', availability: 'available' }));
+  vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({ id: 'W1', kind: 'single', status: 'ready', ordered_device_ids: devices.map(device => device.id), created_at: '', updated_at: '' });
+  vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockResolvedValue({ workspace_id: 'W1', workspace_revision: 'W2', groups: [] });
+  vi.mocked(recordingHomeSourcesAPI.read).mockResolvedValue({ workspace_id: 'W1', state: 'available', source_digest: 'a'.repeat(64), devices, candidates: [], excluded: [] });
+  vi.spyOn(runtimeAPI, 'getStatus').mockResolvedValue({ running: false, uptime_seconds: 0, collectors: [] });
+  vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(500);
+  vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(100);
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const open = vi.fn();
+  const content = <QueryClientProvider client={client}><RecordingHomeRoute location={{ search: '?view=recordings', hash: '' }} onOpenDevice={open} /></QueryClientProvider>;
+  const first = render(content);
+  fireEvent.click(await screen.findByRole('button', { name: 'deviceStatus.showAll' }));
+  const panel = screen.getByTestId('home-collection-scroll'); panel.scrollTop = 84;
+  const card = screen.getByTestId('device-status-D5').closest('article')!;
+  fireEvent.click(within(card).getByRole('button', { name: kind === 'connection' ? 'deviceStatus.editNamed' : 'deviceStatus.viewNamed' }));
+  expect(open).toHaveBeenCalledWith('W1', 'D5', kind, devices.map(({ id, name }) => ({ id, name })));
+  expect(readHomePresentation(client, 'W1', 'W2').scrollTop).toBe(84);
+  first.unmount();
+  render(content);
+  const returned = await screen.findByTestId('device-status-D5');
+  const action = within(returned.closest('article')!).getByRole('button', { name: kind === 'connection' ? 'deviceStatus.editNamed' : 'deviceStatus.viewNamed' });
+  await waitFor(() => expect(action).toHaveFocus());
+  expect(screen.getByTestId('home-collection-scroll').scrollTop).toBe(84);
+  fireEvent.scroll(screen.getByTestId('home-collection-scroll'));
+  expect(readHomePresentation(client, 'W1', 'W2').focusId).toBe(`device-D5-${kind}`);
+});
+
+it.each(['connection', 'points'] as const)('returns focus to the %s card button when the source dialog closes', async kind => {
+  const devices = [{ id: 'D1', name: 'Device', protocol: 'mc', availability: 'available' }];
+  vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({ id: 'W1', kind: 'single', status: 'ready', ordered_device_ids: ['D1'], created_at: '', updated_at: '' });
+  vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockResolvedValue({ workspace_id: 'W1', workspace_revision: 'W2', groups: [] });
+  vi.mocked(recordingHomeSourcesAPI.read).mockResolvedValue({ workspace_id: 'W1', state: 'available', source_digest: 'a'.repeat(64), devices, candidates: [], excluded: [] });
+  vi.spyOn(runtimeAPI, 'getStatus').mockResolvedValue({ running: false, uptime_seconds: 0, collectors: [] });
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(<QueryClientProvider client={client}><RecordingHomeSourceHost renderSource={controls => <button onClick={controls.onClose}>close source</button>}>
+    {(open, workspaceChanged, create) => <RecordingHomeRoute location={{ search: '?view=recordings', hash: '' }}
+      onOpenDevice={open} onWorkspaceChange={workspaceChanged} onCreateDevice={create} />}
+  </RecordingHomeSourceHost></QueryClientProvider>);
+  const card = (await screen.findByTestId('device-status-D1')).closest('article')!;
+  const action = within(card).getByRole('button', { name: kind === 'connection' ? 'deviceStatus.editNamed' : 'deviceStatus.viewNamed' });
+  fireEvent.click(action);
+  fireEvent.click(await screen.findByRole('button', { name: 'close source' }));
+  await waitFor(() => expect(action).toHaveFocus());
 });
 
 function StatusProbe({ workspaceId = 'W1' }: { workspaceId?: string }) {
@@ -144,15 +211,14 @@ it('summarizes all devices, recordings and runtime writes, and toggles the devic
   expect(within(summary).getByTestId('runtime-write-counts')).toHaveTextContent('2');
   fireEvent.click(screen.getByTestId('device-status-MC'));
   expect(screen.getByLabelText('deviceFilter')).toHaveValue('MC');
-  expect(screen.getByText('Recording one')).toBeInTheDocument();
-  expect(screen.queryByText('Recording three')).not.toBeInTheDocument();
+  expect(within(screen.getByTestId('home-management-table')).getByText('Recording one')).toBeInTheDocument();
+  expect(within(screen.getByTestId('home-management-table')).queryByText('Recording three')).not.toBeInTheDocument();
   expect(within(summary).getByTestId('record-count-total')).toHaveTextContent('4');
   fireEvent.click(screen.getByTestId('device-status-MC'));
   expect(screen.getByLabelText('deviceFilter')).toHaveValue('');
-  expect(screen.getByText('Recording three')).toBeInTheDocument();
+  expect(within(screen.getByTestId('home-management-table')).getByText('Recording three')).toBeInTheDocument();
   expect(screen.queryByTestId('home-device-summary')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
-  const table = screen.getByTestId('home-management-table');
-  expect(within(table).getByText('MC').closest('tr')?.querySelector('[data-connection-state]')).toHaveAttribute('data-connection-state', 'degraded');
-  expect(within(table).getByText('mc_new').closest('tr')?.querySelector('[data-connection-state]')).toHaveAttribute('data-connection-state', 'idle');
+  expect(screen.queryByRole('button', { name: 'devicesTab' })).not.toBeInTheDocument();
+  expect(screen.getByTestId('device-status-MC').querySelector('[data-connection-state]')).toHaveAttribute('data-connection-state', 'degraded');
+  expect(screen.getByTestId('device-status-mc_new').querySelector('[data-connection-state]')).toHaveAttribute('data-connection-state', 'idle');
 });

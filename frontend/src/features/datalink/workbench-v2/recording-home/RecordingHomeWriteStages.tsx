@@ -20,8 +20,8 @@ export function RecordingHomeWriteStages({ name, summary }: { name: string; summ
           stage === 'readback' && summary?.readback === 'test_write_verified' ? 'rowEvidence.testWriteReadback' : `rowEvidence.state.${state}`;
       const tooltip = `${id}-${stage}`;
       return <div key={stage} tabIndex={0} className="gw-write-stage" data-write-stage={stage} data-stage-state={state} aria-describedby={tooltip}>
-        <span className="gw-write-stage-title"><Icon aria-hidden="true" size={14} />{t(`rowEvidence.stage.${stage}`)}</span>
-        <span>{t(status)}</span>
+        <span className="gw-write-stage-title"><Icon aria-hidden="true" size={12} strokeWidth={2.5} />{t(`rowEvidence.stage.${stage}`)}</span>
+        <span className="gw-write-stage-status">{t(status)}</span>
         <div role="tooltip" id={tooltip} className="gw-write-stage-tooltip">
           {!summary && <p>{t('rowEvidence.evidenceUnavailable')}</p>}
           {summary && stage === 'configuration' && <><p>{t(`result.configuration.${summary.configuration}`)}</p>{summary.requestedBoundary && <p>{t('result.requestedBoundary')} <time>{summary.requestedBoundary}</time></p>}</>}

@@ -5,7 +5,7 @@ import { RecordingHomeCollection } from '@/features/datalink/workbench-v2/record
 import { initialCollectionState } from '@/features/datalink/workbench-v2/recording-home/recordingHomeCollections';
 import { recordingHomeGuidance } from '@/features/datalink/workbench-v2/recording-home/recordingHomeGuidance';
 import type { WriteGroupLifecycle, WriteGroupLifecycleAction } from '@/types/studioV2WriteGroupLifecycle';
-import type { WriteGroupStatus } from '@/types/studioV2WriteGroup';
+import type { WriteGroup, WriteGroupStatus } from '@/types/studioV2WriteGroup';
 import { studioV2WriteGroupLifecycleAPI } from '@/services/studioV2WriteGroupLifecycle';
 import { studioV2WorkspaceWriteGroupsAPI } from '@/services/studioV2WorkspaceWriteGroups';
 import { fixture, group, groupScope } from './recording-home-guidance-fixtures';
@@ -26,13 +26,16 @@ function renderRow({ stale = false, status = 'running', stop = true, remove = tr
       actions: [availability('stop', stop), availability('remove', remove)] } },
   } } });
   const state = initialCollectionState(), onDelete = vi.fn();
-  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}><RecordingHomeCollection groups={[item]} devices={[]} state={state} guidance={guidance} observedIds={[]} unverifiedObserved={false}
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const content = (record: WriteGroup) => <QueryClientProvider client={client}><RecordingHomeCollection groups={[record]} devices={[]} state={state} guidance={guidance} observedIds={[]} unverifiedObserved={false}
     sourcesAvailable restored={{ state, workspaceRevision: 'W2', scrollTop: 0, focusId: null }} onChange={vi.fn()} onOpen={vi.fn()}
-    onOpenDevice={vi.fn()} onRemember={vi.fn()} onRecheck={vi.fn()} onDelete={onDelete} /></QueryClientProvider>);
+    onOpenDevice={vi.fn()} onRemember={vi.fn()} onRecheck={vi.fn()} onDelete={onDelete} /></QueryClientProvider>;
+  const view = render(content(item));
   const current: WriteGroupLifecycle = { workspace_id: 'W1', workspace_revision: 'W2', group_id: item.id, group_revision: item.revision,
     applied_revision: item.applied_revision, status: item.status, connector_id: item.destination.connector_id, connector_revision: item.destination.connector_revision,
     actions: [availability('stop', stop), availability('remove', remove)], history: { canonical: true, current_group_id: item.id, generations: [] } };
-  return { row: screen.getByText('Recording R').closest('tr')!, onDelete, item, lifecycle: current };
+  return { row: screen.getByText('Recording R').closest('tr')!, onDelete, item, lifecycle: current,
+    rerenderGroup: (record: WriteGroup) => view.rerender(content(record)) };
 }
 
 describe('recording row actions', () => {
@@ -43,57 +46,38 @@ describe('recording row actions', () => {
     expect(stages.map(stage => stage.dataset.stageState)).toEqual(['unconfirmed', 'unconfirmed', 'unconfirmed', 'unconfirmed']);
     expect(stages[0]).not.toHaveTextContent('rowEvidence.draftNotRequested');
   });
-  it('opens with keyboard, moves through items and restores focus on Escape', () => {
+  it('offers stop and delete as direct one-click buttons beside open, without a menu', () => {
     const { row } = renderRow();
-    const trigger = within(row).getByRole('button', { name: 'rowEvidence.actionsFor' });
-    expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
-    trigger.focus(); fireEvent.keyDown(trigger, { key: 'ArrowDown' });
-    const stop = within(row).getByRole('menuitem', { name: 'rowEvidence.stop' });
-    const remove = within(row).getByRole('menuitem', { name: 'rowEvidence.delete' });
-    expect(stop).toHaveFocus();
-    fireEvent.keyDown(stop, { key: 'ArrowDown' }); expect(remove).toHaveFocus();
-    fireEvent.keyDown(remove, { key: 'ArrowUp' }); expect(stop).toHaveFocus();
-    fireEvent.keyDown(stop, { key: 'Escape' });
-    expect(within(row).queryByRole('menu')).toBeNull(); expect(trigger).toHaveFocus();
+    expect(within(row).queryByRole('button', { name: 'rowEvidence.actionsFor' })).toBeNull();
+    expect(within(row).queryByRole('menu')).toBeNull();
+    expect(within(row).getByRole('button', { name: 'rowEvidence.stopNamed' })).toBeEnabled();
+    expect(within(row).getByRole('button', { name: 'rowEvidence.deleteNamed' })).toBeEnabled();
   });
 
   it('disables both actions with a reload hint when evidence has the wrong revision', () => {
     const { row, onDelete } = renderRow({ stale: true });
-    const trigger = within(row).getByRole('button', { name: 'rowEvidence.actionsFor' });
-    trigger.focus(); fireEvent.click(trigger);
-    expect(within(row).getByRole('menuitem', { name: 'rowEvidence.stop' })).toBeDisabled();
-    expect(within(row).getByRole('menuitem', { name: 'rowEvidence.delete' })).toBeDisabled();
+    expect(within(row).getByRole('button', { name: 'rowEvidence.stopNamed' })).toBeDisabled();
+    const remove = within(row).getByRole('button', { name: 'rowEvidence.deleteNamed' });
+    expect(remove).toBeDisabled();
     expect(within(row).getByText('rowEvidence.reloadHint')).toBeInTheDocument();
+    fireEvent.click(remove);
     expect(onDelete).not.toHaveBeenCalled();
-    fireEvent.keyDown(trigger, { key: 'Escape' });
-    expect(within(row).queryByRole('menu')).toBeNull();
-    expect(trigger).toHaveFocus();
-  });
-
-  it('opens on ArrowUp with the last available action focused', () => {
-    const { row } = renderRow();
-    const trigger = within(row).getByRole('button', { name: 'rowEvidence.actionsFor' });
-    trigger.focus(); fireEvent.keyDown(trigger, { key: 'ArrowUp' });
-    expect(within(row).getByRole('menuitem', { name: 'rowEvidence.delete' })).toHaveFocus();
   });
 
   it('uses the server permissions and offers stop only for a running recording', () => {
     const { row, onDelete, item } = renderRow({ stop: false, remove: true });
-    fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.actionsFor' }));
-    expect(within(row).getByRole('menuitem', { name: 'rowEvidence.stop' })).toBeDisabled();
-    fireEvent.click(within(row).getByRole('menuitem', { name: 'rowEvidence.delete' }));
+    expect(within(row).getByRole('button', { name: 'rowEvidence.stopNamed' })).toBeDisabled();
+    fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.deleteNamed' }));
     expect(onDelete).toHaveBeenCalledWith(item);
     cleanup();
     const draft = renderRow({ status: 'draft', remove: false });
-    fireEvent.click(within(draft.row).getByRole('button', { name: 'rowEvidence.actionsFor' }));
-    expect(within(draft.row).queryByRole('menuitem', { name: 'rowEvidence.stop' })).toBeNull();
-    expect(within(draft.row).queryByRole('menuitem', { name: 'rowEvidence.delete' })).toBeNull();
+    expect(within(draft.row).queryByRole('button', { name: 'rowEvidence.stopNamed' })).toBeNull();
+    expect(within(draft.row).queryByRole('button', { name: 'rowEvidence.deleteNamed' })).toBeNull();
   });
 
   it('allows deleting a tombstone when matching server facts permit removal', () => {
     const { row, onDelete, item } = renderRow({ status: 'deleted' });
-    fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.actionsFor' }));
-    fireEvent.click(within(row).getByRole('menuitem', { name: 'rowEvidence.delete' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.deleteNamed' }));
     expect(onDelete).toHaveBeenCalledExactlyOnceWith(item);
   });
 
@@ -101,8 +85,7 @@ describe('recording row actions', () => {
     const { row, item, lifecycle } = renderRow();
     const read = vi.spyOn(studioV2WriteGroupLifecycleAPI, 'lifecycle').mockResolvedValue(lifecycle);
     const disable = vi.spyOn(studioV2WorkspaceWriteGroupsAPI, 'disable').mockResolvedValue({ group: { ...item, status: 'disabled' }, workspace_revision: 'W3' });
-    fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.actionsFor' }));
-    fireEvent.click(within(row).getByRole('menuitem', { name: 'rowEvidence.stop' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.stopNamed' }));
     const confirm = await screen.findByTestId('group-stop-confirm-button');
     expect(disable).not.toHaveBeenCalled();
     fireEvent.click(confirm);
@@ -111,29 +94,56 @@ describe('recording row actions', () => {
     expect(read).toHaveBeenCalledTimes(2);
   });
 
+  it('returns focus to the stable recording button after cancelling a stop', async () => {
+    const { row, lifecycle } = renderRow();
+    vi.spyOn(studioV2WriteGroupLifecycleAPI, 'lifecycle').mockResolvedValue(lifecycle);
+    fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.stopNamed' }));
+    fireEvent.click(await screen.findByTestId('group-stop-cancel'));
+    await waitFor(() => expect(within(row).getByRole('button', { name: 'openRecord' })).toHaveFocus());
+  });
+
+  it('returns focus to the recording when a successful stop removes the stop button', async () => {
+    const { row, item, lifecycle, rerenderGroup } = renderRow();
+    vi.spyOn(studioV2WriteGroupLifecycleAPI, 'lifecycle').mockResolvedValue(lifecycle);
+    let resolve!: (value: Awaited<ReturnType<typeof studioV2WorkspaceWriteGroupsAPI.disable>>) => void;
+    const disable = vi.spyOn(studioV2WorkspaceWriteGroupsAPI, 'disable').mockImplementation(() => new Promise(done => { resolve = done; }));
+    fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.stopNamed' }));
+    fireEvent.click(await screen.findByTestId('group-stop-confirm-button'));
+    await waitFor(() => expect(disable).toHaveBeenCalledOnce());
+    rerenderGroup({ ...item, status: 'disabled' });
+    expect(within(row).queryByRole('button', { name: 'rowEvidence.stopNamed' })).not.toBeInTheDocument();
+    resolve({ group: { ...item, status: 'disabled' }, workspace_revision: 'W3' });
+    await waitFor(() => expect(within(row).getByRole('button', { name: 'openRecord' })).toHaveFocus());
+  });
+
   it('blocks a stop if its authority changes after confirmation opened', async () => {
     const { row, lifecycle } = renderRow();
     vi.spyOn(studioV2WriteGroupLifecycleAPI, 'lifecycle').mockResolvedValueOnce(lifecycle).mockResolvedValueOnce({ ...lifecycle, group_revision: 'old' });
     const disable = vi.spyOn(studioV2WorkspaceWriteGroupsAPI, 'disable');
-    fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.actionsFor' }));
-    fireEvent.click(within(row).getByRole('menuitem', { name: 'rowEvidence.stop' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.stopNamed' }));
     fireEvent.click(await screen.findByTestId('group-stop-confirm-button'));
     expect(await within(row).findByRole('alert')).toHaveTextContent('rowEvidence.reloadHint');
     expect(disable).not.toHaveBeenCalled();
-    fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.actionsFor' }));
-    expect(within(row).getByRole('menuitem', { name: 'rowEvidence.stop' })).toBeDisabled();
+    expect(within(row).getByRole('button', { name: 'rowEvidence.stopNamed' })).toBeDisabled();
+    await waitFor(() => expect(within(row).getByRole('button', { name: 'openRecord' })).toHaveFocus());
+  });
+
+  it('returns focus to the recording if the stop authority cannot be loaded', async () => {
+    const { row } = renderRow();
+    vi.spyOn(studioV2WriteGroupLifecycleAPI, 'lifecycle').mockRejectedValue(new Error('offline'));
+    fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.stopNamed' }));
+    expect(await within(row).findByRole('alert')).toHaveTextContent('rowEvidence.reloadHint');
+    await waitFor(() => expect(within(row).getByRole('button', { name: 'openRecord' })).toHaveFocus());
   });
 
   it('does not silently retry an uncertain stop or expose a raw error', async () => {
     const { row, lifecycle } = renderRow();
     vi.spyOn(studioV2WriteGroupLifecycleAPI, 'lifecycle').mockResolvedValue(lifecycle);
     vi.spyOn(studioV2WorkspaceWriteGroupsAPI, 'disable').mockRejectedValue(new Error('private backend error'));
-    fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.actionsFor' }));
-    fireEvent.click(within(row).getByRole('menuitem', { name: 'rowEvidence.stop' }));
+    fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.stopNamed' }));
     fireEvent.click(await screen.findByTestId('group-stop-confirm-button'));
     expect(await within(row).findByRole('alert')).toHaveTextContent('rowEvidence.stopFailed');
     expect(row).not.toHaveTextContent('private backend error');
-    fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.actionsFor' }));
-    expect(within(row).getByRole('menuitem', { name: 'rowEvidence.stop' })).toBeDisabled();
+    expect(within(row).getByRole('button', { name: 'rowEvidence.stopNamed' })).toBeDisabled();
   });
 });

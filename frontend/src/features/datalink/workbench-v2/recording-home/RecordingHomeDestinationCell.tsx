@@ -26,14 +26,15 @@ export function RecordingHomeDestinationCell({ destination }: { destination: Rec
       setCopyStatus('copyFailed');
     }
   };
+  const database = (destination.database || '').split(/[\\/]/).filter(Boolean).at(-1) || t('unknown');
   return <>
-    <span className="gw-home-flow" data-flow="destination"><ArrowRight aria-hidden="true" size={14} className="gw-home-flow-arrow" /><Database aria-hidden="true" size={14} /><strong className="gw-destination-name" title={destination.table_name}>{destination.storage_strategy === 'managed' ? t('managedTable') : destination.table_name || t('unknown')}</strong></span>
+    <span className="gw-home-flow gw-cell-primary" data-flow="destination"><ArrowRight aria-hidden="true" size={14} className="gw-home-flow-arrow" /><Database aria-hidden="true" size={14} /><strong className="gw-destination-name" title={destination.table_name}>{destination.storage_strategy === 'managed' ? t('managedTable') : destination.table_name || t('unknown')}</strong></span>
     <div className="gw-destination-identity-line">
       <span ref={tableRef} className="gw-table-identity" title={identity}><span>{identity.slice(0, split)}</span><span>{identity.slice(split)}</span></span>
-      {identity && <button type="button" className="gw-row-icon-button" aria-label={t('rowEvidence.copyTable')} onClick={copy}><Copy aria-hidden="true" size={14} /></button>}
-      {destination.connector_id && <span className="gw-connector-hint" title={`${t('product.connector')}: ${destination.connector_id}`} aria-label={`${t('product.connector')}: ${destination.connector_id}`} tabIndex={0}><Info aria-hidden="true" size={14} /></span>}
+      {identity && <button type="button" className="gw-row-icon-button gw-inline-icon" aria-label={t('rowEvidence.copyTable')} onClick={copy}><Copy aria-hidden="true" size={13} /></button>}
+      {destination.connector_id && <span className="gw-connector-hint" title={`${t('product.connector')}: ${destination.connector_id}`} aria-label={`${t('product.connector')}: ${destination.connector_id}`} tabIndex={0}><Info aria-hidden="true" size={13} /></span>}
     </div>
-    <p className="gw-destination-name">{(destination.database || '').split(/[\\/]/).filter(Boolean).at(-1) || t('unknown')}</p>
-    {copyStatus && <p role="status">{t(`rowEvidence.${copyStatus}`)}</p>}
+    <p className="gw-cell-meta gw-destination-name" title={destination.database}>{database}</p>
+    {copyStatus && <p role="status" className="gw-cell-meta">{t(`rowEvidence.${copyStatus}`)}</p>}
   </>;
 }

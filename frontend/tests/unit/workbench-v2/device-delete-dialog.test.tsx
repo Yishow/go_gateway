@@ -1,15 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { RecordingHomeCollection } from '@/features/datalink/workbench-v2/recording-home/RecordingHomeCollection';
-import { initialCollectionState } from '@/features/datalink/workbench-v2/recording-home/recordingHomeCollections';
-import { recordingHomeGuidance } from '@/features/datalink/workbench-v2/recording-home/recordingHomeGuidance';
-import { fixture } from './recording-home-guidance-fixtures';
 import { savedGroup } from '../../fixtures/writeGroupState';
 import { studioV2WorkspaceDevicesAPI } from '@/services/studioV2WorkspaceDevices';
 import { DeleteResponseError } from '@/services/studioV2WorkspaceDelete';
 import { DeviceDeleteDialog } from '@/features/datalink/workbench-v2/recording-home/DeviceDeleteDialog';
-import { RecordingHomeDeviceActions } from '@/features/datalink/workbench-v2/recording-home/RecordingHomeDeviceActions';
 
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 afterEach(cleanup);
@@ -92,17 +87,3 @@ it.each([
   expect(onDeleted).not.toHaveBeenCalled(); remove.mockRestore();
 });
 
-it('offers device deletion from the devices view', () => {
-  const state = { ...initialCollectionState(), mode: 'devices' as const };
-  const devices = [{ id: 'mc_new', name: 'mc_new', protocol: 'mc', availability: 'available' }];
-  const onDelete = vi.fn();
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(<QueryClientProvider client={client}><RecordingHomeCollection groups={[]} devices={devices} state={state}
-    guidance={recordingHomeGuidance(fixture(['mc_new'], false, []))} observedIds={[]} unverifiedObserved={false} sourcesAvailable
-    restored={{ state, workspaceRevision: 'W', scrollTop: 0, focusId: null }} onChange={vi.fn()} onOpen={vi.fn()}
-    onOpenDevice={vi.fn()} onRemember={vi.fn()} onRecheck={vi.fn()}
-    renderDeviceActions={device => <RecordingHomeDeviceActions device={device} available onDelete={onDelete} />} /></QueryClientProvider>);
-  fireEvent.click(screen.getByRole('button', { name: /deleteDialogs.device.actions/ }));
-  fireEvent.click(screen.getByRole('menuitem', { name: 'deleteDialogs.device.confirm' }));
-  expect(onDelete).toHaveBeenCalledExactlyOnceWith(devices[0]);
-});

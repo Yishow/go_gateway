@@ -76,7 +76,7 @@ const NARROW = [{ width: 390, height: 844 }, { width: 768, height: 1024 }, { wid
 for (const viewport of NARROW) {
   test(`every recording's facts and its open action are reachable without sideways scrolling at ${viewport.width}px`, async ({ page }, info) => {
     const { ledger, table } = await openHome(page, viewport.width, viewport.height);
-    await expect(table.getByRole('columnheader')).toHaveCount(6);
+    await expect(table.getByRole('columnheader')).toHaveCount(5);
     const panel = page.getByTestId('home-collection-scroll');
     const overflow = await panel.evaluate(node => ({ panel: node.scrollWidth - node.clientWidth, page: document.documentElement.scrollWidth - window.innerWidth }));
     expect(overflow.panel, 'records panel scrolls sideways').toBeLessThanOrEqual(1);
@@ -85,9 +85,9 @@ for (const viewport of NARROW) {
     for (const item of groups) {
       const row = table.getByRole('row').filter({ hasText: item.name });
       const cells = row.getByRole('cell');
-      await expect(cells).toHaveCount(6);
-      // name, status, source, destination, writes, open record: every cell starts and ends inside the visible panel.
-      for (let index = 0; index < 6; index += 1) {
+      await expect(cells).toHaveCount(5);
+      // name+status, source, destination, writes, actions: every cell starts and ends inside the visible panel.
+      for (let index = 0; index < 5; index += 1) {
         const box = (await cells.nth(index).boundingBox())!;
         expect(box.x, `${item.id} cell ${index} left`).toBeGreaterThanOrEqual(frame.x - 1);
         expect(box.x + box.width, `${item.id} cell ${index} right`).toBeLessThanOrEqual(frame.x + frame.width + 1);
@@ -108,23 +108,20 @@ for (const viewport of NARROW) {
 }
 
 for (const viewport of NARROW) {
-  test(`every device's name, protocol, setting state and actions are reachable without sideways scrolling at ${viewport.width}px`, async ({ page }, info) => {
-    const { ledger, table } = await openHome(page, viewport.width, viewport.height);
-    await page.getByRole('navigation', { name: '管理記錄或設備' }).getByRole('button', { name: '設備' }).click();
-    await expect(table).toHaveAttribute('data-mode', 'devices');
-    await expect(table.getByRole('row')).toHaveCount(DEVICES.length + 1);
-    await expect(table.getByRole('columnheader')).toHaveCount(5);
-    const panel = page.getByTestId('home-collection-scroll');
-    const overflow = await panel.evaluate(node => ({ panel: node.scrollWidth - node.clientWidth, page: document.documentElement.scrollWidth - window.innerWidth }));
-    expect(overflow.panel, 'devices panel scrolls sideways').toBeLessThanOrEqual(1);
-    expect(overflow.page, 'page scrolls sideways').toBeLessThanOrEqual(0);
-    const frame = (await panel.boundingBox())!;
-    for (const device of DEVICES) {
-      const row = table.getByRole('row').filter({ hasText: device.name });
-      await expect(row.getByRole('cell')).toHaveCount(5);
-      const parts = [row.getByText(device.name), row.locator('[data-protocol]'), row.locator('[data-availability-badge]'), row.locator('[data-connection-state]'),
-        row.getByRole('button', { name: '連線設定' }), row.getByRole('button', { name: '讀取點位' }), row.getByTestId(`home-device-anomalies-${device.id}`)];
+  test(`every device card's name, protocol, setting state and actions are reachable without sideways scrolling at ${viewport.width}px`, async ({ page }, info) => {
+    const { ledger } = await openHome(page, viewport.width, viewport.height);
+    await expect(page.getByRole('navigation', { name: '管理記錄或設備' })).toHaveCount(0);
+    const strip = page.getByRole('region', { name: '設備連線狀態' });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth), 'page scrolls sideways').toBeLessThanOrEqual(0);
+    const frame = (await strip.boundingBox())!;
+    for (const [index, device] of DEVICES.entries()) {
+      const card = strip.locator('article').filter({ has: page.getByTestId(`device-status-${device.id}`) });
+      const parts = [card.getByText(device.name), card.getByText('Modbus TCP'), card.locator('[data-connection-state]'),
+        card.getByRole('button', { name: `${device.name} 連線設定` }), card.getByRole('button', { name: `${device.name} 讀取點位` }),
+        card.getByRole('button', { name: `刪除設備 ${device.name}` }), card.getByTestId(`home-device-anomalies-${device.id}`),
+        ...(index ? [card.locator('[data-availability-badge]')] : [])];
       for (const part of parts) {
+        await part.scrollIntoViewIfNeeded();
         await expect(part).toBeVisible();
         const box = (await part.boundingBox())!;
         expect(box.x).toBeGreaterThanOrEqual(frame.x - 1);
@@ -137,9 +134,9 @@ for (const viewport of NARROW) {
   });
 }
 
-test('desktop keeps the six-column table, search, filters, paging and keyboard entry', async ({ page }, info) => {
+test('desktop keeps the five-column table, search, filters, paging and keyboard entry', async ({ page }, info) => {
   const { ledger, table } = await openHome(page, 1440, 900);
-  await expect(table.getByRole('columnheader')).toHaveCount(6);
+  await expect(table.getByRole('columnheader')).toHaveCount(5);
   const header = (await table.getByRole('columnheader').first().boundingBox())!, last = (await table.getByRole('columnheader').last().boundingBox())!;
   expect(Math.abs(header.y - last.y), 'headers stay on one row').toBeLessThanOrEqual(1);
   const panel = page.getByTestId('home-collection-scroll');
@@ -161,10 +158,7 @@ test('desktop keeps the six-column table, search, filters, paging and keyboard e
   await page.keyboard.press('Shift+Tab');
   await page.keyboard.press('Tab');
   await expect(open).toBeFocused();
-  await page.getByRole('navigation', { name: '管理記錄或設備' }).getByRole('button', { name: '設備' }).click();
-  await expect(table.getByRole('columnheader')).toHaveCount(5);
-  expect(await panel.evaluate(node => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
-  await page.screenshot({ path: info.outputPath('home-devices-1440.png'), fullPage: true });
+  await expect(page.getByRole('navigation', { name: '管理記錄或設備' })).toHaveCount(0);
   expect(ledger.writes).toEqual([]);
   expect(ledger.unknown).toEqual([]);
 });
@@ -173,11 +167,9 @@ for (const width of [390, 1440]) {
   test(`device strip delete action is visible and opens its confirmation at ${width}px`, async ({ page }, info) => {
     const { ledger } = await openHome(page, width, width === 390 ? 844 : 900);
     const strip = page.getByRole('region', { name: '設備連線狀態' });
-    const actions = strip.getByRole('button', { name: 'Boiler line PLC 的設備操作' });
-    const stripBox = (await strip.boundingBox())!, actionBox = (await actions.boundingBox())!;
+    const deleteAction = strip.getByRole('button', { name: '刪除設備 Boiler line PLC' });
+    const stripBox = (await strip.boundingBox())!, actionBox = (await deleteAction.boundingBox())!;
     expect(actionBox.y + actionBox.height, 'device action is clipped by the strip').toBeLessThanOrEqual(stripBox.y + stripBox.height);
-    await actions.click();
-    const deleteAction = strip.getByRole('menuitem', { name: '刪除設備' });
     await expect(deleteAction).toBeVisible();
     await deleteAction.click();
     const dialog = page.getByRole('alertdialog');
@@ -192,8 +184,7 @@ for (const width of [390, 1440]) {
   test(`recording delete shows impact and explicit acknowledgement at ${width}px`, async ({ page }, info) => {
     const { ledger, table } = await openHome(page, width, width === 390 ? 844 : 900, true);
     const row = table.getByRole('row').filter({ hasText: groups[1].name });
-    await row.getByRole('button', { name: `「${groups[1].name}」的操作` }).click();
-    await row.getByRole('menuitem', { name: '刪除記錄' }).click();
+    await row.getByRole('button', { name: `刪除記錄 ${groups[1].name}` }).click();
     const dialog = page.getByRole('alertdialog');
     await expect(dialog).toContainText('此動作無法復原');
     await expect(dialog).toContainText('外部資料庫的資料表與已寫入資料會保留');

@@ -25,24 +25,14 @@ describe('one readonly home renderer', () => {
     render(<RecordingHome guidance={recordingHomeGuidance(fixture())} location={{ search: '', hash: '' }} onRetry={vi.fn()} />);
     expect(screen.queryByTestId('home-draft-banner')).not.toBeInTheDocument();
   });
-  it('makes add device the only primary button in devices mode', () => {
-    const createDevice = vi.fn();
-    render(<RecordingHome guidance={recordingHomeGuidance(fixture())} mode="devices" onCreateDevice={createDevice}
-      location={{ search: '?view=recordings', hash: '' }} onRetry={vi.fn()} />);
-    const primary = screen.getByTestId('recording-home').querySelectorAll('button.gw-primary');
-    expect(primary).toHaveLength(1); expect(primary[0]).toHaveTextContent('createDevice');
-    expect(screen.queryByRole('button', { name: 'simple.create' })).not.toBeInTheDocument();
-    fireEvent.click(primary[0]); expect(createDevice).toHaveBeenCalledOnce();
-  });
-  it.each([['deleted', false], ['running', true]] as const)('defaults the unconfirmed disclosure for %s to open=%s', (status, open) => {
+  it.each(['deleted', 'running'] as const)('always shows the attention list for %s without an extra toggle', status => {
     const input = fixture(['D1'], true, [group('G', status)]);
     const guidance = recordingHomeGuidance({ ...input, owners: undefined });
     render(<RecordingHome guidance={guidance} location={{ search: '', hash: '' }} onRetry={vi.fn()} />);
-    const disclosure = screen.getByTestId('recording-home-unconfirmed');
-    expect(disclosure).toHaveTextContent('1 deviceStatus.attention');
-    expect(disclosure.hasAttribute('open')).toBe(open);
-    fireEvent.click(within(disclosure).getByText('1 deviceStatus.attention'));
-    expect(disclosure.hasAttribute('open')).toBe(!open);
+    const region = screen.getByTestId('recording-home-unconfirmed');
+    expect(region.tagName).toBe('SECTION');
+    expect(region).toHaveTextContent('1 deviceStatus.attention');
+    expect(within(region).getByRole('button', { name: 'unconfirmed.inspect' })).toBeVisible();
   });
   it('opens the attention region for an observed delivery fault and names the actual fault', () => {
     const input = fixture(['D1'], true, [group('G')]);
@@ -52,7 +42,6 @@ describe('one readonly home renderer', () => {
       value: { ...delivery.value, intake: { state: 'blocked' } } } } } });
     render(<RecordingHome guidance={guidance} location={{ search: '', hash: '' }} onRetry={vi.fn()} />);
     const disclosure = screen.getByTestId('recording-home-unconfirmed');
-    expect(disclosure).toHaveAttribute('open');
     expect(disclosure).toHaveTextContent('1 deviceStatus.attention');
     expect(within(disclosure).getByText('reason.delivery_attention')).toBeInTheDocument();
   });
@@ -96,7 +85,7 @@ describe('one readonly home renderer', () => {
     const navigate = vi.fn(); const retry = vi.fn(); const configurePoints = vi.fn();
     render(<RecordingHome guidance={recordingHomeGuidance(input)} location={{ search: '?view=recordings&section=database', hash: '#return' }} onNavigate={navigate} onRetry={retry} onConfigurePoints={configurePoints} />);
     expect(screen.getByText(`reason.${reason}`)).toBeInTheDocument(); expect(navigate).not.toHaveBeenCalled(); expect(configurePoints).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByText('openSettings'));
+    fireEvent.click(screen.getByText(reason === 'draft' ? 'deviceStatus.resume' : 'openSettings'));
     if (reason === 'missing_points') {
       expect(configurePoints).toHaveBeenCalledExactlyOnceWith('D1'); expect(navigate).not.toHaveBeenCalled();
     } else {

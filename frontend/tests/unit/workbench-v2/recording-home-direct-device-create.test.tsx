@@ -69,11 +69,8 @@ function noOtherWrites() {
 }
 
 async function openCreate() {
-  fireEvent.click(await screen.findByRole('button', { name: 'Devices' }));
-  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Device management');
-  expect(screen.getByRole('searchbox', { name: 'Search device names or protocols' })).toBeVisible();
-  expect(screen.queryByRole('button', { name: 'New recording' })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Add device' }));
+  const strip = await screen.findByRole('region', { name: 'Device connection status' });
+  fireEvent.click(await within(strip).findByRole('button', { name: 'Add device' }));
   const dialog = await screen.findByRole('dialog');
   await within(dialog).findByTestId('recording-source-name');
   return dialog;

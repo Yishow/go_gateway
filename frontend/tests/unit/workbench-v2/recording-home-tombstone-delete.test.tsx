@@ -28,7 +28,6 @@ function mountTombstone(stale = false) {
     {actions => <RecordingHome guidance={guidance} location={{ search: '', hash: '' }} onRetry={vi.fn()} onDelete={actions.onDelete} />}
   </RecordingDeleteDialogController></QueryClientProvider>);
   const disclosure = screen.getByTestId('recording-home-unconfirmed');
-  fireEvent.click(within(disclosure).getByText('deviceStatus.attention'));
   return { record, facts, disclosure, client };
 }
 
@@ -36,8 +35,7 @@ it('permanently deletes an unconfirmed tombstone after matching server permissio
   const { record, facts, disclosure, client } = mountTombstone();
   vi.spyOn(studioV2WriteGroupLifecycleAPI, 'lifecycle').mockResolvedValue(facts);
   const remove = vi.spyOn(studioV2WorkspaceWriteGroupsAPI, 'remove').mockResolvedValue({ deleted: true, group_id: record.id, lineage_id: '', deleted_generations: 1 });
-  fireEvent.click(within(disclosure).getByRole('button', { name: 'rowEvidence.actionsFor' }));
-  fireEvent.click(within(disclosure).getByRole('menuitem', { name: 'rowEvidence.delete' }));
+  fireEvent.click(within(disclosure).getByRole('button', { name: 'rowEvidence.deleteNamed' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'deleteDialogs.recording.acknowledge' }));
   fireEvent.click(screen.getByTestId('group-delete-confirm-button'));
   await waitFor(() => expect(remove).toHaveBeenCalledWith('Test', { workspace_id: 'W1', expected_workspace_revision: 'W2',
@@ -47,8 +45,7 @@ it('permanently deletes an unconfirmed tombstone after matching server permissio
 
 it('disables a tombstone delete when its lifecycle revision is stale', () => {
   const { disclosure, client } = mountTombstone(true);
-  fireEvent.click(within(disclosure).getByRole('button', { name: 'rowEvidence.actionsFor' }));
-  expect(within(disclosure).getByRole('menuitem', { name: 'rowEvidence.delete' })).toBeDisabled();
+  expect(within(disclosure).getByRole('button', { name: 'rowEvidence.deleteNamed' })).toBeDisabled();
   expect(within(disclosure).getByText('rowEvidence.reloadHint')).toBeInTheDocument();
   client.clear();
 });
@@ -57,8 +54,7 @@ it('refuses to submit when tombstone authority changes after opening the dialog'
   const { facts, disclosure, client } = mountTombstone();
   vi.spyOn(studioV2WriteGroupLifecycleAPI, 'lifecycle').mockResolvedValue({ ...facts, connector_revision: 'changed' });
   const remove = vi.spyOn(studioV2WorkspaceWriteGroupsAPI, 'remove');
-  fireEvent.click(within(disclosure).getByRole('button', { name: 'rowEvidence.actionsFor' }));
-  fireEvent.click(within(disclosure).getByRole('menuitem', { name: 'rowEvidence.delete' }));
+  fireEvent.click(within(disclosure).getByRole('button', { name: 'rowEvidence.deleteNamed' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'deleteDialogs.recording.acknowledge' }));
   fireEvent.click(screen.getByTestId('group-delete-confirm-button'));
   expect(await screen.findByText('deleteDialogs.recording.stale')).toBeInTheDocument();

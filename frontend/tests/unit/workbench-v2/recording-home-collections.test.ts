@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recordingCollection, deviceCollection, initialCollectionState, type HomeDeviceSummary } from '@/features/datalink/workbench-v2/recording-home/recordingHomeCollections';
+import { recordingCollection, initialCollectionState, type HomeDeviceSummary } from '@/features/datalink/workbench-v2/recording-home/recordingHomeCollections';
 import { group } from './recording-home-guidance-fixtures';
 const devices: HomeDeviceSummary[] = Array.from({ length: 100 }, (_, index) => ({ id: `D${index}`, name: `設備 ${index}`, protocol: 'mc_3e', availability: 'available' }));
 const groups = Array.from({ length: 300 }, (_, index) => ({ ...group(`G${String(index).padStart(3, '0')}`, index % 3 === 0 ? 'draft' : 'running'),
@@ -33,10 +33,5 @@ describe('recording collection is a bounded client projection', () => {
   it('distinguishes a genuinely empty workspace from no filter matches', () => {
     expect(recordingCollection([], devices, initialCollectionState()).empty).toBe('empty');
     expect(recordingCollection(groups, devices, { ...initialCollectionState(), keyword: 'absent' }).empty).toBe('no-results');
-  });
-  it('device summary has four rows while same-page management uses25/50', () => {
-    expect(deviceCollection(devices, initialCollectionState()).summary).toHaveLength(4);
-    expect(deviceCollection(devices, initialCollectionState()).rows).toHaveLength(25);
-    expect(deviceCollection(devices, { ...initialCollectionState(), pageSize: 50, page: 2 }).rows).toHaveLength(50);
   });
 });

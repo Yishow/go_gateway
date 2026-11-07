@@ -39,16 +39,14 @@ for (const width of [390, 1440]) {
     await page.goto('/tests/e2e/fixtures/recording-home-source-host.html?home&light');
     const unconfirmed = page.getByTestId('recording-home-unconfirmed');
     await expect(unconfirmed).toBeVisible();
-    await unconfirmed.locator('summary').first().click();
-    await unconfirmed.getByRole('button', { name: '「Test」的操作' }).click();
-    const remove = unconfirmed.getByRole('menuitem', { name: '刪除記錄' });
+    const remove = unconfirmed.getByRole('button', { name: '刪除記錄 Test' });
     await expect(remove).toBeEnabled();
     const bounds = await remove.boundingBox();
     expect(bounds).not.toBeNull();
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
-    await page.screenshot({ path: info.outputPath(`tombstone-menu-${width}.png`), fullPage: true });
+    await page.screenshot({ path: info.outputPath(`tombstone-row-${width}.png`), fullPage: true });
     await remove.click();
     const dialog = page.getByRole('alertdialog');
     await expect(dialog).toContainText('Test');

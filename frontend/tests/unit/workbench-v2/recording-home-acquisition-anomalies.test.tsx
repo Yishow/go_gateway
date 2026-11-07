@@ -3,13 +3,12 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { useState } from 'react';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import i18n from '@/i18n/config';
-import { RecordingHomeCollection } from '@/features/datalink/workbench-v2/recording-home/RecordingHomeCollection';
+import { RecordingHomeDeviceStrip } from '@/features/datalink/workbench-v2/recording-home/RecordingHomeDeviceStrip';
+import { AcquisitionAnomalyDialog } from '@/features/datalink/workbench-v2/recording-home/AcquisitionAnomalyDialog';
 import { anomalySummaryStatus, type AnomalySummaryStatus } from '@/features/datalink/workbench-v2/recording-home/AcquisitionAnomalyButton';
-import { initialCollectionState, type HomeDeviceSummary, type RecordingCollectionState } from '@/features/datalink/workbench-v2/recording-home/recordingHomeCollections';
-import { recordingHomeGuidance } from '@/features/datalink/workbench-v2/recording-home/recordingHomeGuidance';
+import type { HomeDeviceSummary } from '@/features/datalink/workbench-v2/recording-home/recordingHomeCollections';
 import { AcquisitionAnomalyError, listDeviceAcquisitionAnomalies } from '@/services/acquisitionAnomalies';
 import type { AcquisitionAnomalyItem, AcquisitionAnomalySummary } from '@/types/acquisitionAnomaly';
-import { fixture, group } from './recording-home-guidance-fixtures';
 
 vi.mock('@/services/acquisitionAnomalies', async () => {
   const actual = await vi.importActual<typeof import('@/services/acquisitionAnomalies')>('@/services/acquisitionAnomalies');
@@ -21,8 +20,6 @@ const devices: HomeDeviceSummary[] = [
   { id: 'MB', name: 'Modbus 表頭', protocol: 'modbus_tcp', availability: 'available' },
   { id: 'NEW', name: '新設備', protocol: 'modbus_tcp', availability: 'unknown' },
 ];
-const groups = [{ ...group('G1', 'running'), members: [{ ...group('G1').members[0], device_id: 'MC' }] }];
-const guidance = recordingHomeGuidance(fixture(devices.map(device => device.id), false, groups));
 const summary: AcquisitionAnomalySummary = { items: [{ device_id: 'MB', active_count: 0 }, { device_id: 'MC', active_count: 2 }], total_active: 2 };
 const stale: AcquisitionAnomalyItem = {
   id: 11, device_id: 'MC', point_id: 'p5', point_name: 'Temp', point_address: 'D5', kind: 'stale', state: 'ended',
@@ -33,11 +30,12 @@ const disconnected: AcquisitionAnomalyItem = {
   started_at: '2026-11-05T02:00:00Z', ended_at: null, duration_ms: null, last_value: null, detail_codes: ['connection-failed'],
 };
 
-function Host({ anomalies, mode = 'devices' }: { anomalies?: AnomalySummaryStatus; mode?: RecordingCollectionState['mode'] }) {
-  const [state, setState] = useState<RecordingCollectionState>({ ...initialCollectionState(), mode });
-  return <RecordingHomeCollection groups={groups} devices={devices} state={state} guidance={guidance} observedIds={[]} unverifiedObserved={false}
-    sourcesAvailable restored={{ state, workspaceRevision: 'W', scrollTop: 0, focusId: null }} anomalySummary={anomalies}
-    onChange={setState} onOpen={vi.fn()} onOpenDevice={vi.fn()} onRemember={vi.fn()} onRecheck={vi.fn()} />;
+/** Same wiring as the home route: the device card opens the anomaly modal for that device. */
+function Host({ anomalies }: { anomalies?: AnomalySummaryStatus }) {
+  const [device, setDevice] = useState<{ id: string; name: string } | null>(null);
+  return <><RecordingHomeDeviceStrip devices={devices} observations={new Map()} selected="" now={Date.now()} onSelect={vi.fn()} onOpenDevice={vi.fn()}
+    anomalySummary={anomalies} onOpenAnomalies={item => setDevice({ id: item.id, name: item.name })} />
+    {device && <AcquisitionAnomalyDialog device={device} onClose={() => setDevice(null)} />}</>;
 }
 function renderHost(props: Parameters<typeof Host>[0]) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -45,6 +43,7 @@ function renderHost(props: Parameters<typeof Host>[0]) {
 }
 const ready: AnomalySummaryStatus = { state: 'ready', summary };
 const anomalyButton = (scope: HTMLElement, deviceId: string) => within(scope).getByTestId(`home-device-anomalies-${deviceId}`);
+const strip = () => screen.getByRole('region', { name: /^(設備連線狀態|Device connection status)$/ });
 
 beforeAll(async () => { await i18n.changeLanguage('zh-TW'); });
 beforeEach(() => vi.mocked(listDeviceAcquisitionAnomalies).mockReset());
@@ -59,10 +58,9 @@ describe('anomaly summary status projection', () => {
 });
 
 describe('home acquisition anomaly button', () => {
-  it.each(['devices', 'recordings'] as const)('shows the three states next to read points when entering from %s mode', mode => {
-    renderHost({ anomalies: ready, mode });
-    if (mode === 'recordings') fireEvent.click(screen.getByRole('button', { name: '設備' }));
-    const scope = screen.getByTestId('home-management-table');
+  it('shows the three states on each device card beside its read-points action', () => {
+    renderHost({ anomalies: ready });
+    const scope = strip();
     const mc = anomalyButton(scope, 'MC'), mb = anomalyButton(scope, 'MB'), unknown = anomalyButton(scope, 'NEW');
     expect(mc).toHaveTextContent('採集異常 2');
     expect(mc).toHaveAttribute('data-anomaly-state', 'active');
@@ -70,13 +68,13 @@ describe('home acquisition anomaly button', () => {
     expect(mb).toHaveAttribute('data-anomaly-state', 'none');
     expect(unknown).toHaveTextContent('狀態未知');
     expect(unknown).toHaveAttribute('data-anomaly-state', 'unknown');
-    expect(mc.previousElementSibling).toHaveTextContent('讀取點位');
+    expect(mc.closest('article')?.querySelector('[data-device-action="points"]')).toHaveTextContent('讀取點位');
   });
 
   it('a failed summary marks every device unknown instead of normal', () => {
     renderHost({ anomalies: { state: 'unavailable' } });
     for (const id of ['MC', 'MB', 'NEW']) {
-      const button = anomalyButton(screen.getByTestId('home-management-table'), id);
+      const button = anomalyButton(strip(), id);
       expect(button).toHaveAttribute('data-anomaly-state', 'unknown');
       expect(button).toHaveTextContent('狀態未知');
     }
@@ -84,10 +82,10 @@ describe('home acquisition anomaly button', () => {
 
   it('without a summary source the status is unknown, and while reading it says checking', () => {
     renderHost({});
-    expect(anomalyButton(screen.getByTestId('home-management-table'), 'MC')).toHaveAttribute('data-anomaly-state', 'unknown');
+    expect(anomalyButton(strip(), 'MC')).toHaveAttribute('data-anomaly-state', 'unknown');
     cleanup();
     renderHost({ anomalies: { state: 'checking' } });
-    expect(anomalyButton(screen.getByTestId('home-management-table'), 'MC')).toHaveAttribute('data-anomaly-state', 'checking');
+    expect(anomalyButton(strip(), 'MC')).toHaveAttribute('data-anomaly-state', 'checking');
   });
 });
 
@@ -97,7 +95,7 @@ describe('acquisition anomaly modal', () => {
     try {
       vi.mocked(listDeviceAcquisitionAnomalies).mockResolvedValue({ items: [disconnected], total: 1, limit: 25, offset: 0 });
       renderHost({ anomalies: ready });
-      fireEvent.click(anomalyButton(screen.getByTestId('home-management-table'), 'MC'));
+      fireEvent.click(anomalyButton(strip(), 'MC'));
       const table = await within(await screen.findByRole('dialog')).findByRole('table');
       const [, activeRow] = within(table).getAllByRole('row');
       expect(within(activeRow).getAllByRole('cell')[4]).toHaveTextContent('10 分');
@@ -109,7 +107,7 @@ describe('acquisition anomaly modal', () => {
   it('opens a classified form modal listing events with start, end, duration, address and last value', async () => {
     vi.mocked(listDeviceAcquisitionAnomalies).mockResolvedValue({ items: [disconnected, stale], total: 2, limit: 25, offset: 0 });
     renderHost({ anomalies: ready });
-    fireEvent.click(anomalyButton(screen.getByTestId('home-management-table'), 'MC'));
+    fireEvent.click(anomalyButton(strip(), 'MC'));
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveAttribute('data-size', 'form');
     expect(within(dialog).getByRole('heading', { level: 2 })).toHaveTextContent('MC 主機');
@@ -132,7 +130,7 @@ describe('acquisition anomaly modal', () => {
   it('filters by kind and state and returns to the first page', async () => {
     vi.mocked(listDeviceAcquisitionAnomalies).mockResolvedValue({ items: [stale], total: 30, limit: 25, offset: 0 });
     renderHost({ anomalies: ready });
-    fireEvent.click(anomalyButton(screen.getByTestId('home-management-table'), 'MC'));
+    fireEvent.click(anomalyButton(strip(), 'MC'));
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByRole('table');
     fireEvent.click(within(dialog).getByRole('button', { name: '下一頁' }));
@@ -146,7 +144,7 @@ describe('acquisition anomaly modal', () => {
   it('shows an actionable error with retry instead of an empty list, then recovers', async () => {
     vi.mocked(listDeviceAcquisitionAnomalies).mockRejectedValueOnce(new AcquisitionAnomalyError('unavailable', true));
     renderHost({ anomalies: ready });
-    fireEvent.click(anomalyButton(screen.getByTestId('home-management-table'), 'MC'));
+    fireEvent.click(anomalyButton(strip(), 'MC'));
     const dialog = await screen.findByRole('dialog');
     const alert = await within(dialog).findByRole('alert');
     expect(alert).toHaveTextContent('目前無法讀取採集異常');
@@ -160,22 +158,21 @@ describe('acquisition anomaly modal', () => {
 
   it('closes on Escape and returns focus to the anomaly button', async () => {
     vi.mocked(listDeviceAcquisitionAnomalies).mockResolvedValue({ items: [stale], total: 1, limit: 25, offset: 0 });
-    renderHost({ anomalies: ready, mode: 'recordings' });
-    fireEvent.click(screen.getByRole('button', { name: '設備' }));
-    const trigger = anomalyButton(screen.getByTestId('home-management-table'), 'MC');
+    renderHost({ anomalies: ready });
+    const trigger = anomalyButton(strip(), 'MC');
     trigger.focus();
     fireEvent.click(trigger);
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByRole('table');
     fireEvent.keyDown(dialog, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    await waitFor(() => expect(document.activeElement).toBe(anomalyButton(screen.getByTestId('home-management-table'), 'MC')));
+    await waitFor(() => expect(document.activeElement).toBe(anomalyButton(strip(), 'MC')));
   });
 
   it('distinguishes no events from no matches only after a successful read', async () => {
     vi.mocked(listDeviceAcquisitionAnomalies).mockResolvedValue({ items: [], total: 0, limit: 25, offset: 0 });
     renderHost({ anomalies: ready });
-    fireEvent.click(anomalyButton(screen.getByTestId('home-management-table'), 'MB'));
+    fireEvent.click(anomalyButton(strip(), 'MB'));
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByText('這台設備沒有採集異常紀錄。')).toBeInTheDocument();
     fireEvent.change(within(dialog).getByLabelText('類型'), { target: { value: 'frozen' } });
@@ -190,14 +187,14 @@ describe('acquisition anomaly modal', () => {
     vi.mocked(listDeviceAcquisitionAnomalies).mockResolvedValue({ items: [multiReasonItem], total: 1, limit: 25, offset: 0 });
     await i18n.changeLanguage('zh-TW');
     renderHost({ anomalies: ready });
-    fireEvent.click(anomalyButton(screen.getByTestId('home-management-table'), 'MC'));
+    fireEvent.click(anomalyButton(strip(), 'MC'));
     const dialogZh = await screen.findByRole('dialog');
     expect(await within(dialogZh).findByText('連線失敗；沒有成功讀取')).toBeInTheDocument();
     cleanup();
 
     await i18n.changeLanguage('en');
     renderHost({ anomalies: ready });
-    fireEvent.click(anomalyButton(screen.getByTestId('home-management-table'), 'MC'));
+    fireEvent.click(anomalyButton(strip(), 'MC'));
     const dialogEn = await screen.findByRole('dialog');
     expect(await within(dialogEn).findByText('Connection failed; No successful read')).toBeInTheDocument();
     cleanup();

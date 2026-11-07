@@ -34,9 +34,7 @@ it('deletes from a home row and updates both its list and summary without page r
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   render(<QueryClientProvider client={client}><RecordingHomeRoute location={{ search: '?view=recordings', hash: '' }} /></QueryClientProvider>);
   const row = (await screen.findByText('Recording G1')).closest('tr')!;
-  const menu = within(row).getByRole('button', { name: 'rowEvidence.actionsFor' });
-  fireEvent.click(menu);
-  const item = await within(row).findByRole('menuitem', { name: 'rowEvidence.delete' });
+  const item = await within(row).findByRole('button', { name: 'rowEvidence.deleteNamed' });
   await waitFor(() => expect(item).toBeEnabled()); fireEvent.click(item);
   fireEvent.click(await screen.findByRole('checkbox', { name: 'deleteDialogs.recording.acknowledge' }));
   fireEvent.click(screen.getByTestId('group-delete-confirm-button'));
@@ -47,7 +45,7 @@ it('deletes from a home row and updates both its list and summary without page r
   expect(remove).toHaveBeenCalledOnce(); client.clear();
 });
 
-it('opens device deletion from both the status strip and devices table, blocking referenced devices', async () => {
+it('opens device deletion from the device card in one click, blocking referenced devices', async () => {
   const groups = [group('G1', 'ready'), group('G2', 'ready')];
   vi.mocked(studioV2WorkspaceAPI.get).mockResolvedValue({ id: 'W1', kind: 'single', status: 'ready', ordered_device_ids: ['D1'], created_at: '', updated_at: '' });
   vi.mocked(recordingHomeSourcesAPI.read).mockResolvedValue({ workspace_id: 'W1', state: 'available', source_digest: 'a'.repeat(64),
@@ -61,19 +59,13 @@ it('opens device deletion from both the status strip and devices table, blocking
   await screen.findByTestId('device-status-D1');
   await waitFor(() => expect(screen.getByTestId('home-source-observation')).toHaveAttribute('data-source-status', 'fresh'));
   const strip = screen.getByRole('region', { name: 'deviceStatus.strip' });
-  fireEvent.click(within(strip).getByRole('button', { name: 'deleteDialogs.device.actions' }));
-  fireEvent.click(within(strip).getByRole('menuitem', { name: 'deleteDialogs.device.confirm' }));
+  fireEvent.click(within(strip).getByRole('button', { name: 'deleteDialogs.device.deleteNamed' }));
   expect(await screen.findByText('Recording G1', { selector: 'li span' })).toBeInTheDocument();
   expect(screen.getByText('Recording G2', { selector: 'li span' })).toBeInTheDocument();
   expect(screen.getByTestId('device-delete-confirm-button')).toBeDisabled();
   fireEvent.click(screen.getByRole('button', { name: 'deleteDialogs.device.cancel' }));
-  await waitFor(() => expect(within(strip).getByRole('button', { name: 'deleteDialogs.device.actions' })).toHaveFocus());
-  fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
-  const table = screen.getByTestId('home-management-table');
-  fireEvent.click(within(table).getByRole('button', { name: 'deleteDialogs.device.actions' }));
-  fireEvent.click(within(table).getByRole('menuitem', { name: 'deleteDialogs.device.confirm' }));
-  expect(await screen.findByText('Recording G1', { selector: 'li span' })).toBeInTheDocument();
-  expect(screen.getByTestId('device-delete-confirm-button')).toBeDisabled(); client.clear();
+  await waitFor(() => expect(within(strip).getByRole('button', { name: 'deleteDialogs.device.deleteNamed' })).toHaveFocus());
+  client.clear();
 });
 
 it('keeps an unknown result open and reports a failed refresh inside the dialog', async () => {
@@ -89,8 +81,7 @@ it('keeps an unknown result open and reports a failed refresh inside the dialog'
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   render(<QueryClientProvider client={client}><RecordingHomeRoute location={{ search: '?view=recordings', hash: '' }} /></QueryClientProvider>);
   const row = (await screen.findByText('Recording G1')).closest('tr')!;
-  fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.actionsFor' }));
-  const item = await within(row).findByRole('menuitem', { name: 'rowEvidence.delete' });
+  const item = await within(row).findByRole('button', { name: 'rowEvidence.deleteNamed' });
   await waitFor(() => expect(item).toBeEnabled()); fireEvent.click(item);
   fireEvent.click(await screen.findByRole('checkbox', { name: 'deleteDialogs.recording.acknowledge' }));
   fireEvent.click(screen.getByTestId('group-delete-confirm-button'));
@@ -116,8 +107,7 @@ it('keeps a 409 open and leads the operator to an explicit stop confirmation', a
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   render(<QueryClientProvider client={client}><RecordingHomeRoute location={{ search: '?view=recordings', hash: '' }} /></QueryClientProvider>);
   const row = (await screen.findByText('Recording G1')).closest('tr')!;
-  fireEvent.click(within(row).getByRole('button', { name: 'rowEvidence.actionsFor' }));
-  const item = await within(row).findByRole('menuitem', { name: 'rowEvidence.delete' });
+  const item = await within(row).findByRole('button', { name: 'rowEvidence.deleteNamed' });
   await waitFor(() => expect(item).toBeEnabled()); fireEvent.click(item);
   fireEvent.click(await screen.findByRole('checkbox', { name: 'deleteDialogs.recording.acknowledge' }));
   fireEvent.click(screen.getByTestId('group-delete-confirm-button'));
@@ -140,8 +130,7 @@ it('updates the device strip and summary after deleting an unreferenced device',
   await screen.findByTestId('device-status-D1');
   await waitFor(() => expect(screen.getByTestId('home-source-observation')).toHaveAttribute('data-source-status', 'fresh'));
   const strip = screen.getByRole('region', { name: 'deviceStatus.strip' });
-  fireEvent.click(within(strip).getByRole('button', { name: 'deleteDialogs.device.actions' }));
-  fireEvent.click(within(strip).getByRole('menuitem', { name: 'deleteDialogs.device.confirm' }));
+  fireEvent.click(within(strip).getByRole('button', { name: 'deleteDialogs.device.deleteNamed' }));
   fireEvent.change(await screen.findByLabelText('deleteDialogs.device.typeName'), { target: { value: 'mc_new' } });
   fireEvent.click(screen.getByTestId('device-delete-confirm-button'));
   await waitFor(() => expect(screen.queryByTestId('device-status-D1')).not.toBeInTheDocument());

@@ -1,12 +1,12 @@
 import { RecordingProductShell } from '../shell/RecordingProductShell';
 import './recording-home.css';
 import './recordingHomeStatus.css';
-import type { ReactNode } from 'react';
+import { useId, type ReactNode, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { RecordingHomeGuidance, RecordingHomeGuidanceAction } from './recordingHomeGuidance';
 import { buildRecordingRepairTarget, buildSimpleRecordingTarget, buildStudioPresentationTarget } from '../../../../services/studioRecordingView';
 import { buildRecordingLogsTarget } from '../../../../services/runtimeLogsNavigation';
-import { CircleHelp, CircleX, Info, TriangleAlert } from 'lucide-react';
+import { ArrowRight, CircleHelp, CircleX, FilePenLine, Info, Plus, RefreshCw, ScrollText, TriangleAlert } from 'lucide-react';
 import { RecordingHomeUnconfirmed } from './RecordingHomeUnconfirmed';
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import type { RecordingReadonly } from '../state/recordingWorkflowView';
@@ -39,9 +39,9 @@ export function RecordingHomeTools({ location, onNavigate }: { location: Recordi
   </>;
 }
 /** Actual readonly home; visual hierarchy never changes evidence or command ownership. */
-export function RecordingHome({ guidance, location, onNavigate, onRetry, collection, statusContent, updatedAt, onConfigurePoints, workspaceId, mode = 'recordings', onCreateDevice, onDelete, settling = false }: {
+export function RecordingHome({ guidance, location, onNavigate, onRetry, collection, statusContent, updatedAt, onConfigurePoints, workspaceId, onDelete, settling = false, homeRef }: {
   /** First-load reads are still settling: hold one stable reading state instead of repainting each read batch. */
-  settling?: boolean; mode?: 'recordings' | 'devices'; onCreateDevice?: () => void; onDelete?: (group: RecordingReadonly<WriteGroup>) => void; workspaceId?: string; guidance: RecordingHomeGuidance; location: RecordingHomeLocation; onNavigate?: (target: string) => void; onRetry: () => void; collection?: ReactNode; statusContent?: ReactNode; updatedAt?: number; onConfigurePoints?: (deviceId: string) => void;
+  settling?: boolean; homeRef?: RefObject<HTMLElement | null>; onDelete?: (group: RecordingReadonly<WriteGroup>) => void; workspaceId?: string; guidance: RecordingHomeGuidance; location: RecordingHomeLocation; onNavigate?: (target: string) => void; onRetry: () => void; collection?: ReactNode; statusContent?: ReactNode; updatedAt?: number; onConfigurePoints?: (deviceId: string) => void;
 }) {
   const { t } = useTranslation('recording-home');
   const { t: editorText } = useTranslation('recording-editor');
@@ -63,36 +63,56 @@ export function RecordingHome({ guidance, location, onNavigate, onRetry, collect
   // Item-level gaps are named below; only an unreadable home says the whole state is unread.
   const heading = guidance.reason === 'evidence_unavailable' && guidance.availability.state === 'available' ? 'reason.evidence_unconfirmed' : `reason.${guidance.reason}`;
   const lastUpdated = updatedAt ? new Date(updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : '—';
-  const draft = guidance.draftItems[0];
+  const draftId = useId();
+  const drafts = guidance.draftItems;
+  const cta = guidance.primaryAction && guidance.reason !== 'draft' ? guidance.primaryAction : null;
+  const hint = guidance.availability.state === 'available' ? `deviceStatus.hints.${heading.slice('reason.'.length)}` : null;
   return <><RecordingProductShell workspaceId={workspaceId ?? guidance.primaryAction?.scope.workspaceId}
-    tools={<RecordingHomeTools location={location} onNavigate={onNavigate} />} /><main data-workbench-v2="true" data-testid="recording-home" className="gw-recording-home" aria-busy={settling || undefined} data-home-settling={settling ? 'true' : 'false'}>
+    tools={<RecordingHomeTools location={location} onNavigate={onNavigate} />} /><main ref={homeRef} data-workbench-v2="true" data-testid="recording-home" className="gw-recording-home" aria-busy={settling || undefined} data-home-settling={settling ? 'true' : 'false'}>
     <header className="gw-home-header">
-      <h1>{t(mode === 'devices' ? 'devicesTitle' : 'title')}</h1>
+      <div className="gw-home-title">
+        <h1>{t('title')}</h1>
+        <p className="gw-home-meta"><span className="gw-home-freshness">{t('deviceStatus.lastUpdated', { time: lastUpdated })}</span>
+          <span className="gw-home-help"><button type="button" aria-label={t('deviceStatus.freshnessHelp')}><CircleHelp aria-hidden="true" size={15} /></button>
+            <span role="tooltip">{t('sources.fresh')} {t('observationBoundary')}</span></span></p>
+      </div>
       <div className="gw-home-toolbar">
-        {mode === 'recordings' && guidance.primaryAction && <button type="button" onClick={() => navigate(guidance.primaryAction!)}>{t('openSettings')}</button>}
-        <button type="button" data-testid={logs ? 'recording-scoped-logs' : undefined} onClick={() => onNavigate?.(logs ?? '/studio/logs')}>{t('logs')}</button>
-        <button type="button" onClick={onRetry}>{t('retry')}</button>
-        <span className="gw-home-freshness">{t('deviceStatus.lastUpdated', { time: lastUpdated })}</span>
-        <span className="gw-home-help"><button type="button" aria-label={t('deviceStatus.freshnessHelp')}><CircleHelp aria-hidden="true" size={16} /></button>
-          <span role="tooltip">{t('sources.fresh')} {t('observationBoundary')}</span></span>
-        {mode === 'devices' ? <button type="button" className="gw-home-create gw-primary" onClick={onCreateDevice}>{t('createDevice')}</button>
-          : <button type="button" className="gw-home-create gw-primary" onClick={() => { const target = buildSimpleRecordingTarget({ kind: 'new' }, location.hash); if (target) onNavigate?.(target); }}>{editorText('simple.create')}</button>}
+        <div className="gw-home-toolgroup" role="group" aria-label={t('deviceStatus.tools')}>
+          <button type="button" data-testid={logs ? 'recording-scoped-logs' : undefined} onClick={() => onNavigate?.(logs ?? '/studio/logs')}><ScrollText aria-hidden="true" size={16} /><span>{t('logs')}</span></button>
+          <button type="button" onClick={onRetry}><RefreshCw aria-hidden="true" size={16} /><span>{t('retry')}</span></button>
+        </div>
+        <button type="button" className="gw-home-create gw-primary" onClick={() => { const target = buildSimpleRecordingTarget({ kind: 'new' }, location.hash); if (target) onNavigate?.(target); }}><Plus aria-hidden="true" size={16} /><span>{editorText('simple.create')}</span></button>
       </div>
     </header>
     {statusContent}
-    {mode === 'recordings' && draft && <aside className="gw-draft-banner" data-testid="home-draft-banner"><span>{t('deviceStatus.resumeDraft', { name: draft.name })}</span>
-      <button type="button" onClick={() => navigate(draft.action)}>{t('deviceStatus.resume')}</button></aside>}
+    <div className="gw-home-worklist">
     <section aria-live="polite" className="gw-home-guidance" data-guidance-state={guidanceState} data-testid="recording-home-guidance">
       {settling && <p className="gw-guidance-heading gw-home-settling-status" role="status">{t('loading')}</p>}
-      <p className="gw-guidance-heading"><GuidanceIcon aria-hidden="true" size={18} />{t(heading)}</p>
-      {guidance.availability.state === 'unavailable' && <p role={guidance.availability.reason === 'error' ? 'alert' : 'status'}>
-        {t(guidance.availability.reason === 'loading' ? 'loading' : guidance.availability.reason === 'error' ? 'error' : 'unknown')}
-      </p>}
+      <span className="gw-guidance-icon" aria-hidden="true"><GuidanceIcon size={20} /></span>
+      <div className="gw-guidance-body">
+        <p className="gw-guidance-eyebrow">{t('deviceStatus.nextStep')}</p>
+        <p className="gw-guidance-heading">{t(heading)}</p>
+        {hint && <p className="gw-guidance-hint">{t(hint, { count: drafts.length })}</p>}
+        {guidance.availability.state === 'unavailable' && <p role={guidance.availability.reason === 'error' ? 'alert' : 'status'}>
+          {t(guidance.availability.reason === 'loading' ? 'loading' : guidance.availability.reason === 'error' ? 'error' : 'unknown')}
+        </p>}
+        {drafts.length > 0 && <p className="gw-draft-label">{t('deviceStatus.drafts')}</p>}
+        {drafts.length > 0 && <ul className="gw-draft-list" data-testid="home-draft-banner" aria-label={t('deviceStatus.drafts')}>
+          {drafts.slice(0, 3).map((item, index) => <li key={item.id}>
+            <span className="gw-draft-icon" aria-hidden="true"><FilePenLine size={16} /></span>
+            <span className="gw-draft-name"><strong id={`${draftId}-${index}`}>{item.name}</strong><small>{t('deviceStatus.draftState')}</small></span>
+            <button type="button" aria-describedby={`${draftId}-${index}`} onClick={() => navigate(item.action)}><span>{t('deviceStatus.resume')}</span><ArrowRight aria-hidden="true" size={15} /></button>
+          </li>)}
+          {drafts.length > 3 && <li className="gw-draft-more">{t('deviceStatus.moreDrafts', { count: drafts.length - 3 })}</li>}
+        </ul>}
+      </div>
+      {cta && <button type="button" className="gw-guidance-cta" onClick={() => navigate(cta)}><span>{t('openSettings')}</span><ArrowRight aria-hidden="true" size={16} /></button>}
     </section>
-    {/* Unresolved/unknown evidence stays traceable in both object modes. */}
+    {/* Unresolved/unknown evidence stays traceable. */}
     <RecordingHomeUnconfirmed guidance={guidance} onDelete={onDelete} onInspect={item => navigate(item.action)}
       onLogs={item => { const target = buildRecordingLogsTarget({ workspaceId: item.action.scope.workspaceId, groupId: item.id,
         groupRevision: item.evidence.group.revision }, location.hash); if (target) onNavigate?.(target); }} />
+    </div>
     {collection ?? <section aria-label={t('saved')}>
       <h2 className="text-lg font-semibold">{t('saved')}</h2>
       <ul>{guidance.recordingItems.map(item => <li key={item.id} className="my-2">

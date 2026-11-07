@@ -1,4 +1,4 @@
-import { Cpu, TriangleAlert } from 'lucide-react';
+import { ChevronRight, CirclePause, Cpu, Trash2, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWriteGroupLifecycleMutation } from '@/hooks/datalink/useStudioV2WriteGroups';
@@ -14,7 +14,6 @@ import { RecordingStatusBadge } from './RecordingHomeBadges';
 import { RecordingHomeDestinationCell } from './RecordingHomeDestinationCell';
 import { RecordingHomeResultFacts } from './RecordingHomeResultFacts';
 import { RecordingHomeWriteStages } from './RecordingHomeWriteStages';
-import { RecordingHomeRowActions } from './RecordingHomeRowActions';
 import { recordingHomeLifecycleMatches } from './recordingHomeLifecycleMatches';
 import type { RecordingHomeGuidanceItem } from './recordingHomeGuidance';
 import type { RecordingHomeScope } from './recordingHomeProjection';
@@ -73,7 +72,7 @@ export function RecordingHomeRecordRow({ group, devices, summary, attention, evi
   const { t } = useTranslation('recording-home');
   const [stopping, setStopping] = useState(false), [stopError, setStopError] = useState<'reloadHint' | 'stopFailed' | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const returnFocus = useRef<HTMLElement | null>(null), refreshObserved = useRef(false);
+  const returnFocus = useRef<HTMLButtonElement | null>(null), refreshObserved = useRef(false);
   const lifecycle = evidence?.evidence.lifecycle;
   const fact = lifecycle?.state === 'available' ? lifecycle.value : undefined;
   const scope = evidence?.action.scope;
@@ -90,23 +89,26 @@ export function RecordingHomeRecordRow({ group, devices, summary, attention, evi
       setRefreshing(false);
     }
   }, [refreshing, lifecycle, matches]);
-  const actions = [
-    ...(group.status === 'running' ? [{ id: 'stop', label: t('rowEvidence.stop'), disabled: !canStop || stopping || Boolean(stopError), onSelect: () => {
-      returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      setStopError(null); setStopping(true);
-    } }] : []),
-    ...(onDelete && (!matches || canDelete) ? [{ id: 'delete', label: t('rowEvidence.delete'), disabled: !matches || Boolean(stopError), onSelect: () => onDelete(group) }] : []),
-  ];
-  return <tr>
-    <td><strong>{group.name}</strong></td>
-    <td><RecordingStatusBadge status={group.status} />{attention && <p className="gw-observed-issue"><TriangleAlert aria-hidden="true" size={14} />{t('observedAttentionShort')}</p>}</td>
-    <td data-label={t('recordSources')}><span className="gw-home-flow" data-flow="source"><Cpu aria-hidden="true" size={14} /><span>{[...new Set(group.members.map(member => member.device_id))].map(id => devices.find(device => device.id === id)?.name ?? id).join(' / ') || t('unknown')}</span></span><p>{t('recordPointCount', { count: group.members.length })}</p><p className="gw-source-state">{t(`result.current.${summary?.current === 'source_attention' ? 'source_attention' : 'unknown'}`)}</p></td>
+  const showStop = group.status === 'running', showDelete = Boolean(onDelete) && (!matches || canDelete);
+  const stop = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.currentTarget.focus();
+    setStopError(null); setStopping(true);
+  };
+  return <tr data-record-status={group.status}>
+    <td><div className="gw-record-identity"><strong>{group.name}</strong><RecordingStatusBadge status={group.status} /></div>
+      {attention && <p className="gw-observed-issue"><TriangleAlert aria-hidden="true" size={14} />{t('observedAttentionShort')}</p>}</td>
+    <td data-label={t('recordSources')}><span className="gw-home-flow gw-cell-primary" data-flow="source"><Cpu aria-hidden="true" size={14} /><span>{[...new Set(group.members.map(member => member.device_id))].map(id => devices.find(device => device.id === id)?.name ?? id).join(' / ') || t('unknown')}</span></span>
+      <p className="gw-cell-meta"><span>{t('recordPointCount', { count: group.members.length })}</span><span className="gw-source-state">{t(`result.current.${summary?.current === 'source_attention' ? 'source_attention' : 'unknown'}`)}</span></p></td>
     <td data-label={t('destinationFilter')}><RecordingHomeDestinationCell destination={group.destination} /></td>
     <td data-label={t('recordWrites')}>{summary ? <RecordingHomeResultFacts showSourceState={false} id={group.id} name={group.name} summary={summary} /> : <><RecordingHomeWriteStages name={group.name} /><p>{t('statusUnknown')}</p></>}</td>
-    <td><div className="gw-record-row-controls"><button type="button" data-home-focus={`record-${group.id}`} onClick={onOpen}>{t('openRecord')}</button>
-      <RecordingHomeRowActions label={t('rowEvidence.actionsFor', { name: group.name })} items={actions} hint={!matches ? t('rowEvidence.reloadHint') : actions.length === 0 ? t('rowEvidence.noActions') : undefined} /></div>
+    <td><div className="gw-record-row-controls"><button ref={returnFocus} type="button" className="gw-open-record" data-home-focus={`record-${group.id}`} onClick={onOpen}><span>{t('openRecord')}</span><ChevronRight aria-hidden="true" size={15} /></button>
+      {showStop && <button type="button" className="gw-row-icon-button" aria-label={t('rowEvidence.stopNamed', { name: group.name })} title={t('rowEvidence.stop')}
+        disabled={!canStop || stopping || Boolean(stopError)} onClick={stop}><CirclePause aria-hidden="true" size={16} /></button>}
+      {showDelete && <button type="button" className="gw-row-icon-button gw-danger-ghost" aria-label={t('rowEvidence.deleteNamed', { name: group.name })} title={t('rowEvidence.delete')}
+        disabled={!matches || Boolean(stopError)} onClick={event => { event.currentTarget.focus(); onDelete?.(group); }}><Trash2 aria-hidden="true" size={16} /></button>}</div>
+      {!matches && (showStop || showDelete) && <p className="gw-row-hint">{t('rowEvidence.reloadHint')}</p>}
       {stopping && scope && <RecordingStopConfirmation key={JSON.stringify([scope.workspaceId, scope.workspaceRevision, group.id, group.revision])}
-        group={group} scope={scope} returnFocus={returnFocus.current} onClose={() => setStopping(false)} onError={kind => { setStopping(false); setStopError(kind); }} />}
+        group={group} scope={scope} returnFocus={returnFocus.current} onClose={() => setStopping(false)} onError={kind => { setStopping(false); setStopError(kind); returnFocus.current?.focus(); }} />}
       {stopError && <div role="alert"><p>{t(`rowEvidence.${stopError}`)}</p><button type="button" disabled={refreshing} onClick={() => { refreshObserved.current = false; setRefreshing(true); onRecheck(); }}>{t('retry')}</button></div>}
     </td>
   </tr>;

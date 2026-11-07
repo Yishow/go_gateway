@@ -180,9 +180,9 @@ it('collection search and filters never hide the unconfirmed list', () => {
   expect(within(screen.getByRole('region', { name: 'unconfirmed.title' })).getByText('Recording TEST')).toBeInTheDocument();
 });
 
-it('the unconfirmed list stays visible and traceable in device mode', () => {
+it('the unconfirmed list stays visible and traceable on the recording home', () => {
   const navigate = vi.fn();
-  render(<RecordingHome mode="devices" guidance={routeGuidance(removedWithDrafts('unresolved'))} location={{ search: '', hash: '' }} onNavigate={navigate} onRetry={vi.fn()} />);
+  render(<RecordingHome guidance={routeGuidance(removedWithDrafts('unresolved'))} location={{ search: '', hash: '' }} onNavigate={navigate} onRetry={vi.fn()} />);
   const row = within(screen.getByRole('region', { name: 'unconfirmed.title' })).getByText('Recording TEST').closest('li')!;
   expect(within(row).getByText('unconfirmed.unresolved.start')).toBeInTheDocument();
   fireEvent.click(within(row).getByRole('button', { name: 'unconfirmed.inspect' }));

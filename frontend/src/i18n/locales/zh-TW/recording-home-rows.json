@@ -1,8 +1,17 @@
 {
   "rowEvidence": {
     "stagesFor": "「{{name}}」的寫入階段",
-    "stage": { "configuration": "設定", "activation": "啟用", "sql": "SQL 寫入", "readback": "回讀" },
-    "state": { "complete": "完成", "unconfirmed": "未確認", "attention": "需要注意" },
+    "stage": {
+      "configuration": "設定",
+      "activation": "啟用",
+      "sql": "SQL 寫入",
+      "readback": "回讀"
+    },
+    "state": {
+      "complete": "完成",
+      "unconfirmed": "未確認",
+      "attention": "需要注意"
+    },
     "draftNotRequested": "草稿未要求啟用",
     "historical": "歷史寫入",
     "testWriteReadback": "試寫回讀",
@@ -15,7 +24,6 @@
     "stop": "停止",
     "delete": "刪除記錄",
     "reloadHint": "操作資訊已過期，請重新整理後再試。",
-    "noActions": "這筆記錄目前沒有可用操作。",
     "stopFailed": "無法確認停止結果，請先重新整理再試。",
     "secondsAgo_one": "{{count}} 秒前",
     "secondsAgo_other": "{{count}} 秒前",
@@ -24,6 +32,8 @@
     "hoursAgo_one": "{{count}} 小時前",
     "hoursAgo_other": "{{count}} 小時前",
     "daysAgo_one": "{{count}} 天前",
-    "daysAgo_other": "{{count}} 天前"
+    "daysAgo_other": "{{count}} 天前",
+    "deleteNamed": "刪除記錄 {{name}}",
+    "stopNamed": "停止記錄 {{name}}"
   }
 }

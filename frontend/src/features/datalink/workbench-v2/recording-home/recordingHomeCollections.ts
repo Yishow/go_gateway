@@ -33,9 +33,3 @@ export function recordingCollection(groups: readonly RecordingReadonly<WriteGrou
     .sort(byName(state.descending));
   return pageRows(groups, filtered, state);
 }
-export function deviceCollection(devices: readonly HomeDeviceSummary[], state: RecordingCollectionState) {
-  const keyword = searchText(state.keyword);
-  const sorted = [...devices].sort(byName(state.descending));
-  const filtered = sorted.filter(device => !keyword || searchText(`${device.name} ${device.id} ${device.protocol}`).includes(keyword));
-  return { ...pageRows(devices, filtered, state), summary: sorted.slice(0, 4) };
-}

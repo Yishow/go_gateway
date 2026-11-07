@@ -1,8 +1,17 @@
 {
   "rowEvidence": {
     "stagesFor": "Write stages for {{name}}",
-    "stage": { "configuration": "Configuration", "activation": "Activation", "sql": "SQL write", "readback": "Readback" },
-    "state": { "complete": "Complete", "unconfirmed": "Unconfirmed", "attention": "Needs attention" },
+    "stage": {
+      "configuration": "Configuration",
+      "activation": "Activation",
+      "sql": "SQL write",
+      "readback": "Readback"
+    },
+    "state": {
+      "complete": "Complete",
+      "unconfirmed": "Unconfirmed",
+      "attention": "Needs attention"
+    },
     "draftNotRequested": "Draft not requested",
     "historical": "Historical write",
     "testWriteReadback": "Test-write readback",
@@ -15,7 +24,6 @@
     "stop": "Stop",
     "delete": "Delete recording",
     "reloadHint": "Action information is out of date. Refresh and try again.",
-    "noActions": "No actions are available for this recording.",
     "stopFailed": "The stop result could not be confirmed. Refresh before trying again.",
     "secondsAgo_one": "{{count}} second ago",
     "secondsAgo_other": "{{count}} seconds ago",
@@ -24,6 +32,8 @@
     "hoursAgo_one": "{{count}} hour ago",
     "hoursAgo_other": "{{count}} hours ago",
     "daysAgo_one": "{{count}} day ago",
-    "daysAgo_other": "{{count}} days ago"
+    "daysAgo_other": "{{count}} days ago",
+    "deleteNamed": "Delete recording {{name}}",
+    "stopNamed": "Stop recording {{name}}"
   }
 }

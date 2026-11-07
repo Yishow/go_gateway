@@ -25,7 +25,16 @@
       "stopUnavailable": "無法確認記錄能否停止，請重新整理後再試。",
       "openRecording": "開啟記錄",
       "refresh": "重新整理",
-      "outbox": { "pending": "待送資料列數", "queued": "排隊中資料列數", "sending": "傳送中資料列數", "retrying": "重試中資料列數", "blocked": "受阻資料列數", "quarantined": "隔離資料列數", "unknown": "結果未知資料列數", "other": "其他交付資料列數" }
+      "outbox": {
+        "pending": "待送資料列數",
+        "queued": "排隊中資料列數",
+        "sending": "傳送中資料列數",
+        "retrying": "重試中資料列數",
+        "blocked": "受阻資料列數",
+        "quarantined": "隔離資料列數",
+        "unknown": "結果未知資料列數",
+        "other": "其他交付資料列數"
+      }
     },
     "device": {
       "actions": "{{name}} 的設備操作",
@@ -44,7 +53,8 @@
       "refused": "伺服器未完成刪除要求，請重新整理目前清單後再試。",
       "shareRefreshFailed": "設備已刪除，但 Modbus Share 無法更新。請重新整理並檢查 Share 後再繼續。",
       "connectionCloseFailed": "設備已刪除，但無法關閉其連線。請重新整理並檢查連線後再繼續。",
-      "refresh": "重新整理"
+      "refresh": "重新整理",
+      "deleteNamed": "刪除設備 {{name}}"
     }
   }
 }

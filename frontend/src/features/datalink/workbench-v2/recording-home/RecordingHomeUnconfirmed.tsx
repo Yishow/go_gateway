@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CircleHelp, TriangleAlert } from 'lucide-react';
+import { CircleHelp, ScrollText, Search, Trash2, TriangleAlert } from 'lucide-react';
 import { recordingHomeNotRequested, type RecordingHomeAttentionItem, type RecordingHomeGuidance } from './recordingHomeGuidance';
 import { RecordingStatusBadge } from './RecordingHomeBadges';
-import { RecordingHomeRowActions } from './RecordingHomeRowActions';
 import { recordingHomeLifecycleMatches } from './recordingHomeLifecycleMatches';
 import type { WriteGroup } from '@/types/studioV2WriteGroup';
 import type { RecordingReadonly } from '../state/recordingWorkflowView';
@@ -29,7 +27,6 @@ export function RecordingHomeUnconfirmed({ guidance, onInspect, onLogs, onDelete
   onDelete?: (group: RecordingReadonly<WriteGroup>) => void;
 }) {
   const { t } = useTranslation('recording-home');
-  const [expanded, setExpanded] = useState<boolean | null>(null);
   // Only items whose details this page requested (or with known unresolved work); the page boundary
   // note already covers items not read. Nothing here requests more detail.
   const items = guidance.availability.state === 'available' ? guidance.attentionItems.filter(item => item.reason !== 'evidence_unavailable' ||
@@ -50,19 +47,20 @@ export function RecordingHomeUnconfirmed({ guidance, onInspect, onLogs, onDelete
         {item.evidence.group.status === 'deleted' && <p className="gw-home-unconfirmed-note">{t('unconfirmed.removed')}</p>}
       </div>
       <div className="gw-home-unconfirmed-actions">
-        <button type="button" aria-label={t('unconfirmed.inspect', { name: item.name })} onClick={() => onInspect(item)}>{t('unconfirmed.inspectShort')}</button>
-        <button type="button" aria-label={t('unconfirmed.logs', { name: item.name })} onClick={() => onLogs(item)}>{t('logs')}</button>
-        {group.status === 'deleted' && onDelete && (!matches || canDelete) && <RecordingHomeRowActions
-          label={t('rowEvidence.actionsFor', { name: item.name })} hint={!matches ? t('rowEvidence.reloadHint') : undefined}
-          items={[{ id: 'delete', label: t('rowEvidence.delete'), disabled: !canDelete, onSelect: () => onDelete(group) }]} />}
+        <button type="button" aria-label={t('unconfirmed.inspect', { name: item.name })} onClick={() => onInspect(item)}><Search aria-hidden="true" size={15} /><span>{t('unconfirmed.inspectShort')}</span></button>
+        <button type="button" aria-label={t('unconfirmed.logs', { name: item.name })} onClick={() => onLogs(item)}><ScrollText aria-hidden="true" size={15} /><span>{t('logs')}</span></button>
+        {group.status === 'deleted' && onDelete && (!matches || canDelete) && <button type="button" className="gw-row-icon-button gw-danger-ghost"
+          aria-label={t('rowEvidence.deleteNamed', { name: item.name })} disabled={!canDelete} title={!matches ? t('rowEvidence.reloadHint') : t('rowEvidence.delete')}
+          onClick={event => { event.currentTarget.focus(); onDelete(group); }}><Trash2 aria-hidden="true" size={16} /></button>}
       </div>
+      {!matches && group.status === 'deleted' && onDelete && <p className="gw-home-unconfirmed-hint">{t('rowEvidence.reloadHint')}</p>}
     </li>;
   };
-  return <details className="gw-home-unconfirmed" role="region" aria-label={t('unconfirmed.title')} data-testid="recording-home-unconfirmed"
-    open={expanded ?? items.some(item => item.evidence.group.status !== 'deleted')} onToggle={event => setExpanded(event.currentTarget.open)}>
-    <summary><h2>{t('deviceStatus.attention', { count: items.length })}</h2></summary>
+  return <section className="gw-home-unconfirmed" aria-label={t('unconfirmed.title')} data-testid="recording-home-unconfirmed">
+    <header className="gw-home-unconfirmed-header"><TriangleAlert aria-hidden="true" size={18} />
+      <h2>{t('deviceStatus.attention', { count: items.length })}</h2><p>{t('unconfirmed.hint')}</p></header>
     <ul className="gw-home-unconfirmed-list">{items.slice(0, SHOWN).map(row)}</ul>
     {items.length > SHOWN && <details className="gw-home-unconfirmed-more"><summary>{t('unconfirmed.more', { count: items.length - SHOWN })}</summary>
       <ul className="gw-home-unconfirmed-list">{items.slice(SHOWN).map(row)}</ul></details>}
-  </details>;
+  </section>;
 }

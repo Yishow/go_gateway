@@ -14,8 +14,14 @@
     "lastUpdated": "最後更新 {{time}}",
     "freshnessHelp": "關於本次觀測",
     "resumeDraft": "繼續編輯草稿：{{name}}",
-    "resume": "繼續編輯",
-    "states": { "collecting": "採集中", "degraded": "部分異常", "disconnected": "中斷", "idle": "未採集", "unavailable": "狀態無法取得" },
+    "resume": "繼續設定",
+    "states": {
+      "collecting": "採集中",
+      "degraded": "部分異常",
+      "disconnected": "中斷",
+      "idle": "未採集",
+      "unavailable": "狀態無法取得"
+    },
     "points": "{{healthy}}/{{total}} 點健康",
     "pointsUnknown": "點位狀態無法取得",
     "readUnknown": "讀值時間無法取得",
@@ -24,6 +30,32 @@
     "minutesAgo_one": "{{count}} 分鐘前",
     "minutesAgo_other": "{{count}} 分鐘前",
     "hoursAgo_one": "{{count}} 小時前",
-    "hoursAgo_other": "{{count}} 小時前"
+    "hoursAgo_other": "{{count}} 小時前",
+    "tools": "頁面工具",
+    "successRate": "成功率 {{rate}}%",
+    "successRateUnknown": "成功率無法取得",
+    "noWritesYet": "尚無寫入",
+    "filterHint": "點選以篩選此設備的記錄，再點一次取消",
+    "editNamed": "{{name}} 連線設定",
+    "viewNamed": "{{name}} 讀取點位",
+    "nextStep": "下一步",
+    "drafts": "未完成的草稿",
+    "draftState": "草稿 · 尚未啟用，不會寫入",
+    "moreDrafts": "還有 {{count}} 筆草稿，可在下方記錄清單以「草稿」篩選。",
+    "hints": {
+      "operation_recovery": "有操作還沒確認是否完成。請先開啟設定確認結果，再做其他變更。",
+      "delivery_attention": "部分記錄寫入資料庫時出現異常，請開啟設定檢查寫入階段與日誌。",
+      "source_attention": "部分記錄的來源設備或點位異常，請開啟設定檢查來源。",
+      "evidence_unavailable": "部分狀態還沒讀取完成，可按「重新整理」再讀一次。",
+      "evidence_unconfirmed": "下方列出無法確認狀態的記錄與原因，可逐筆檢查。",
+      "draft_one": "有 {{count}} 筆草稿尚未完成。草稿不會寫入資料庫，設定好來源點位與目的地並啟用後才會開始記錄。",
+      "draft_other": "有 {{count}} 筆草稿尚未完成。草稿不會寫入資料庫，設定好來源點位與目的地並啟用後才會開始記錄。",
+      "missing_devices": "先新增一台設備，接著才能選擇要記錄的點位。",
+      "missing_points": "設備已建立，接著設定要讀取的點位。",
+      "missing_recordings": "設備與點位已就緒，建立記錄並選擇要寫入資料庫的點位。",
+      "recordings": "記錄都已設定完成，可在下方查看每筆記錄的寫入狀況。"
+    },
+    "showAll": "顯示全部 {{count}} 台",
+    "showLess": "收合"
   }
 }

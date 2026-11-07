@@ -69,7 +69,10 @@ function mount(strict = false) {
     presentationLocation={{ search: '?view=recordings', hash: '#home' }} navigateTo={vi.fn()} /></QueryClientProvider>;
   render(strict ? <StrictMode>{page}</StrictMode> : page);
 }
-async function openDevicePoints() { fireEvent.click(await screen.findByRole('button', { name: /^(Devices|設備)$/ })); fireEvent.click(within(await screen.findByTestId('home-management-table')).getByRole('button', { name: /^(Read points|讀取點位)$/ })); }
+async function openDevicePoints() {
+  const strip = await screen.findByRole('region', { name: /^(Device connection status|設備連線狀態)$/ });
+  fireEvent.click(await waitFor(() => { const action = strip.querySelector<HTMLElement>('[data-device-action="points"]'); if (!action) throw new Error('no points action'); return action; }));
+}
 /** No separate range list: the first saved range opens directly with every range as an inline choice. */
 async function openSettings() {
   mount(); await openDevicePoints();

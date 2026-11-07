@@ -205,8 +205,7 @@ describe('modal exact identity and original completion boundaries', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(studioV2RulesAPI.update).not.toHaveBeenCalled(); noOtherWrites();
   });
   it('starts an existing-device connection buffer without changing or duplicating the saved device', async () => {
-    mount(); await screen.findByTestId('device-status-D'); fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
-    fireEvent.click(within(screen.getByTestId('home-management-table')).getByRole('button', { name: 'Connection' }));
+    mount(); await screen.findByTestId('device-status-D'); fireEvent.click(await homeDeviceAction('D', 'connection'));
     const dialog = await screen.findByRole('dialog'); const name = await within(dialog).findByTestId('recording-source-name');
     expect(name).toHaveValue('Device D'); expect(within(dialog).getByLabelText('Protocol', { selector: 'select' })).toBeDisabled();
     fireEvent.change(name, { target: { value: 'Unsent device name' } }); fireEvent.click(screen.getByTestId('recording-source-close'));
@@ -223,8 +222,7 @@ describe('modal exact identity and original completion boundaries', () => {
       vi.mocked(recordingHomeSourcesAPI.read).mockImplementation(() => new Promise(resolve => { resolveSummary = resolve; }));
       return saved;
     });
-    mount(); await screen.findByTestId('device-status-D'); fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
-    fireEvent.click(within(screen.getByTestId('home-management-table')).getByRole('button', { name: 'Connection' }));
+    mount(); await screen.findByTestId('device-status-D'); fireEvent.click(await homeDeviceAction('D', 'connection'));
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(await within(dialog).findByTestId('recording-source-name'), { target: { value: 'Saved device name' } });
     expect(studioV2WorkspaceDevicesAPI.update).not.toHaveBeenCalled();
@@ -236,9 +234,9 @@ describe('modal exact identity and original completion boundaries', () => {
     await waitFor(() => expect(resolveSummary).toBeTypeOf('function'));
     expect(recordingHomeSourcesAPI.read).toHaveBeenCalledTimes(2);
     expect(screen.getByTestId('home-source-observation')).toHaveAttribute('data-source-status', 'refreshing');
-    expect(within(screen.getByTestId('home-management-table')).getByText('Device D')).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Device connection status' })).getByText('Device D')).toBeInTheDocument();
     await act(async () => resolveSummary(savedSummary));
-    await within(screen.getByTestId('home-management-table')).findByText('Saved device name');
+    await within(screen.getByRole('region', { name: 'Device connection status' })).findByText('Saved device name');
     expect(recordingHomeSourcesAPI.read).toHaveBeenCalledTimes(2);
     expect(studioV2WorkspaceDevicesAPI.create).not.toHaveBeenCalled(); expect(studioV2RulesAPI.update).not.toHaveBeenCalled();
   });
@@ -293,8 +291,7 @@ describe('modal exact identity and original completion boundaries', () => {
     mount(); await screen.findByTestId('device-status-D');
     let waiting = false;
     vi.mocked(studioV2WorkspaceWriteGroupsAPI.list).mockImplementationOnce(() => { waiting = true; return new Promise(() => undefined); });
-    fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
-    fireEvent.click(within(screen.getByTestId('home-management-table')).getByRole('button', { name: 'Connection' }));
+    fireEvent.click(await homeDeviceAction('D', 'connection'));
     const dialog = await screen.findByRole('dialog');
     fireEvent.change(await within(dialog).findByTestId('recording-source-name'), { target: { value: 'Prepared later' } });
     await waitFor(() => expect(waiting).toBe(true));
@@ -306,8 +303,7 @@ describe('modal exact identity and original completion boundaries', () => {
 describe('existing device modal has one cancel and an acknowledged save return', () => {
   async function openConnection() {
     mount(); await screen.findByTestId('device-status-D');
-    fireEvent.click(screen.getByRole('button', { name: 'Devices' }));
-    fireEvent.click(within(screen.getByTestId('home-management-table')).getByRole('button', { name: 'Connection' }));
+    fireEvent.click(await homeDeviceAction('D', 'connection'));
     const dialog = await screen.findByRole('dialog');
     await within(dialog).findByTestId('recording-source-name'); return dialog;
   }

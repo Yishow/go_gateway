@@ -25,7 +25,16 @@
       "stopUnavailable": "Could not confirm that recording can be stopped. Refresh and try again.",
       "openRecording": "Open recording",
       "refresh": "Refresh",
-      "outbox": { "pending": "Pending delivery rows", "queued": "Queued delivery rows", "sending": "Sending delivery rows", "retrying": "Retrying delivery rows", "blocked": "Blocked delivery rows", "quarantined": "Quarantined delivery rows", "unknown": "Delivery rows with unknown outcome", "other": "Other delivery rows" }
+      "outbox": {
+        "pending": "Pending delivery rows",
+        "queued": "Queued delivery rows",
+        "sending": "Sending delivery rows",
+        "retrying": "Retrying delivery rows",
+        "blocked": "Blocked delivery rows",
+        "quarantined": "Quarantined delivery rows",
+        "unknown": "Delivery rows with unknown outcome",
+        "other": "Other delivery rows"
+      }
     },
     "device": {
       "actions": "Actions for {{name}}",
@@ -44,7 +53,8 @@
       "refused": "The server could not complete the deletion request. Refresh the current list before trying again.",
       "shareRefreshFailed": "The device was deleted, but Modbus Share could not refresh. Refresh and review Share before continuing.",
       "connectionCloseFailed": "The device was deleted, but its connection could not be closed. Refresh and review the connection before continuing.",
-      "refresh": "Refresh"
+      "refresh": "Refresh",
+      "deleteNamed": "Delete device {{name}}"
     }
   }
 }

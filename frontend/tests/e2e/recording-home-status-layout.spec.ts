@@ -102,7 +102,7 @@ for (const viewport of viewports) for (const theme of ['light', 'dark'] as const
       const frame = (await strip.boundingBox())!, box = (await card.boundingBox())!;
       expect(box.x).toBeGreaterThanOrEqual(frame.x - 1);
       expect(box.x + box.width).toBeLessThanOrEqual(frame.x + frame.width + 1);
-      const action = strip.getByRole('button', { name: `${device.name} 的設備操作` });
+      const action = strip.getByRole('button', { name: `刪除設備 ${device.name}` });
       await action.scrollIntoViewIfNeeded();
       const actionBox = (await action.boundingBox())!;
       expect(actionBox.x).toBeGreaterThanOrEqual(frame.x - 1);

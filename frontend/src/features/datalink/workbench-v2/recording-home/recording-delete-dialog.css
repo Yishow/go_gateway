@@ -6,6 +6,4 @@
 .gw-delete-dialog button:active:not(:disabled) { transform: translateY(1px); }
 .gw-recording-home .gw-device-strip .gw-device-card { display: flex; flex-direction: column; }
 .gw-recording-home .gw-device-strip .gw-device-card > button:first-child { height: auto; flex: 1; }
-.gw-recording-home .gw-device-strip .gw-record-row-menu { display: flex; flex-direction: column; align-items: flex-end; padding: var(--gw-space-xs); }
-.gw-recording-home .gw-device-strip .gw-record-row-menu-list { position: static; min-width: 0; max-width: 100%; }
 @media (prefers-reduced-motion: reduce) { .gw-delete-dialog button { transition: none; } }

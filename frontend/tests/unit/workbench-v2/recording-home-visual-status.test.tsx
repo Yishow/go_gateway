@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { RecordingHomeCollection } from '@/features/datalink/workbench-v2/recording-home/RecordingHomeCollection';
 import { initialCollectionState, type HomeDeviceSummary } from '@/features/datalink/workbench-v2/recording-home/recordingHomeCollections';
 import { recordingHomeGuidance } from '@/features/datalink/workbench-v2/recording-home/recordingHomeGuidance';
@@ -52,24 +52,6 @@ describe('recording rows read as source → recording → destination with statu
     expect(row('Recording A').querySelector('[data-sql-fact="unknown"] svg[aria-hidden="true"]')).toBeTruthy();
     expect(screen.getByTestId('home-management-table').querySelector('.lucide-circle-check')).toBeNull();
   });
-  it('summarises saved statuses with real counts from the loaded list only', () => {
-    render(<Host />);
-    const distribution = screen.getByRole('list', { name: 'statusDistribution' });
-    expect(within(distribution).getByText('statusCount:2').closest('[data-status-count]')).toHaveAttribute('data-status-count', 'draft');
-    expect(distribution.querySelector('[data-status-count="running"]')).toHaveTextContent('statusCount:1');
-    expect(distribution.querySelector('[data-status-count="deleted"]')).toHaveTextContent('statusCount:1');
-    expect(distribution.querySelector('[data-status-count="ready"]')).toBeNull();
-    // A static, decorative proportion bar driven by the same saved-status counts.
-    const bar = screen.getByTestId('home-status-bar');
-    expect(bar).toHaveAttribute('aria-hidden', 'true');
-    expect([...bar.querySelectorAll<HTMLElement>('[data-status-segment]')].map(node => [node.dataset.statusSegment, node.style.flexGrow]))
-      .toEqual([['draft', '2'], ['running', '1'], ['deleted', '1']]);
-    // The denominator is named: every loaded saved record, not the current filter result.
-    expect(screen.getByText('statusDistributionScope:4')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('savedStatus'), { target: { value: 'draft' } });
-    expect(screen.getByText('statusDistributionScope:4')).toBeInTheDocument();
-    expect(distribution.querySelector('[data-status-count="running"]')).toHaveTextContent('statusCount:1');
-  });
   it('saved running is drawn as a configuration switch, not live running or success', () => {
     render(<Host />);
     const badge = row('Recording R').querySelector('[data-status-badge="running"]')!;
@@ -78,32 +60,7 @@ describe('recording rows read as source → recording → destination with statu
   });
 });
 
-describe('device rows show protocol and observed availability graphically', () => {
-  it('labels persisted setting availability as a setting, never a check mark of live health', () => {
-    render(<Host />);
-    fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
-    const badge = row('Boiler PLC').querySelector('[data-availability-badge="available"]');
-    expect(badge).toHaveTextContent('configAvailability.available'); expect(icon(badge)).toBeTruthy();
-    expect(row('Meter').querySelector('[data-availability-badge="unknown"]')).toHaveTextContent('configAvailability.unknown');
-    expect(row('Boiler PLC').querySelector('[data-availability-badge="available"]')).toHaveTextContent('configAvailability.available');
-    expect(screen.getByTestId('home-management-table').querySelector('.lucide-circle-check')).toBeNull();
-    expect(icon(row('Meter').querySelector('[data-protocol]'))).toBeTruthy();
-  });
-  it('keeps device identity, protocol, setting and live status distinct in the device row', () => {
-    render(<Host />);
-    fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
-    const item = row('Boiler PLC');
-    expect(within(item).getByText('Boiler PLC').tagName).toBe('STRONG');
-    expect(item.querySelector('[data-protocol]')).toHaveTextContent('protocolNames.modbus_tcp');
-    expect(icon(item.querySelector('[data-protocol]'))).toBeTruthy();
-    expect(item.querySelector('[data-availability-badge]')).toHaveTextContent('configAvailability.available');
-    expect(item.querySelector('[data-connection-state]')).toHaveTextContent('deviceStatus.states.unavailable');
-  });
-  it('mode tabs carry icons without changing their accessible names', () => {
-    render(<Host />);
-    for (const name of ['recordingsTab', 'devicesTab']) expect(icon(screen.getByRole('button', { name }))).toBeTruthy();
-  });
-});
+
 
 describe('untrusted availability strings', () => {
   it.each(['__proto__', 'constructor', 'toString', 'hasOwnProperty'])('%s renders as setting status unknown without crashing', value => {

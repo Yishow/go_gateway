@@ -19,15 +19,14 @@ function Host({ initial = initialCollectionState(), observedIds = [], openDevice
     onChange={setState} onOpen={vi.fn()} onOpenDevice={openDevice} onRemember={vi.fn()} onRecheck={vi.fn()} />;
 }
 describe('compact home management', () => {
-  it('300 records render only 25/50 rows and same-page device management stays bounded', () => {
+  it('300 records render only 25/50 rows and the panel never switches to a device table', () => {
     render(<Host />); expect(within(screen.getByTestId('home-management-table')).getAllByRole('row')).toHaveLength(26);
     expect(screen.queryByTestId('home-device-summary')).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('pageSize'), { target: { value: '50' } });
     expect(within(screen.getByTestId('home-management-table')).getAllByRole('row')).toHaveLength(51);
     fireEvent.click(screen.getByText('next')); expect(screen.getByTestId('home-page-status')).toHaveTextContent('2/6 (300)');
-    fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
-    expect(within(screen.getByTestId('home-management-table')).getAllByRole('row')).toHaveLength(51);
-    expect(screen.getByTestId('home-page-status')).toHaveTextContent('1/2 (100)');
+    expect(screen.queryByRole('button', { name: 'devicesTab' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('home-management-table')).toHaveAttribute('data-mode', 'recordings');
   });
   it('keyword and filters find a named recording without scanning pages, with clear-filter recovery', () => {
     render(<Host />); fireEvent.change(screen.getByLabelText('keyword'), { target: { value: 'table_299' } });
@@ -118,46 +117,22 @@ describe('compact home management', () => {
 });
 
 
-describe('device actions stay inside the simple home', () => {
-  it('uses an explicit points action in the device list', () => {
-    const openDevice = vi.fn(); render(<Host openDevice={openDevice} />);
-    expect(screen.queryByTestId('home-device-summary')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
-    const row = within(screen.getByTestId('home-management-table')).getAllByRole('row')[1];
-    expect(within(row).queryByRole('button', { name: 'Device 0' })).not.toBeInTheDocument();
-    expect(within(row).getByText('Device 0').tagName).toBe('STRONG');
-    fireEvent.click(within(row).getByRole('button', { name: 'devicePoints' }));
-    expect(openDevice).toHaveBeenCalledExactlyOnceWith('D0', 'points');
-  });
-  it('offers distinct connection and points actions on the same-page device list', () => {
-    const openDevice = vi.fn(); render(<Host openDevice={openDevice} />);
-    fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
-    const row = within(screen.getByTestId('home-management-table')).getAllByRole('row')[1];
-    expect(within(row).queryByRole('button', { name: 'Device 0' })).not.toBeInTheDocument();
-    fireEvent.click(within(row).getByRole('button', { name: 'deviceConnection' }));
-    expect(openDevice).toHaveBeenLastCalledWith('D0', 'connection');
-    fireEvent.click(within(row).getByRole('button', { name: 'devicePoints' }));
-    expect(openDevice).toHaveBeenLastCalledWith('D0', 'points');
-    expect(openDevice).toHaveBeenCalledTimes(2);
-    expect(screen.getByTestId('home-page-status')).toHaveTextContent('1/4 (100)');
-  });
-});
-
 it('separates saved sources, destination and unknown writing facts without inventing runtime health', () => {
   render(<Host />); const table = screen.getByTestId('home-management-table');
-  expect(within(table).getAllByRole('columnheader').map(node => node.textContent)).toEqual(['name', 'savedStatus', 'recordSources', 'destinationFilter', 'recordWrites', 'actions']);
+  expect(within(table).getAllByRole('columnheader').map(node => node.textContent)).toEqual(['name', 'recordSources', 'destinationFilter', 'recordWrites', 'actions']);
   const cells = within(within(table).getAllByRole('row')[1]).getAllByRole('cell');
-  expect(cells[2]).toHaveTextContent('Device 0'); expect(cells[2]).toHaveTextContent('1 recording points');
-  expect(cells[3]).toHaveTextContent('table_0'); expect(cells[4]).toHaveTextContent('statusUnknown');
-  expect(within(cells[5]).getByRole('button', { name: 'openRecord' })).toBeInTheDocument();
-  expect(cells[4]).not.toHaveTextContent(/healthy|rows\/s|0 faults/i);
+  expect(cells[0]).toHaveTextContent('Recording 000'); expect(cells[0].querySelector('[data-status-badge]')).toBeTruthy();
+  expect(cells[1]).toHaveTextContent('Device 0'); expect(cells[1]).toHaveTextContent('1 recording points');
+  expect(cells[2]).toHaveTextContent('table_0'); expect(cells[3]).toHaveTextContent('statusUnknown');
+  expect(within(cells[4]).getByRole('button', { name: 'openRecord' })).toBeInTheDocument();
+  expect(cells[3]).not.toHaveTextContent(/healthy|rows\/s|0 faults/i);
 });
 
-it('keeps recording identity plain, with open, copy and row actions', () => {
+it('keeps recording identity plain, with open and copy; a draft without delete authority shows no extra actions', () => {
  render(<Host />); const row = within(screen.getByTestId('home-management-table')).getAllByRole('row')[1];
  expect(within(row).getByText('Recording 000').tagName).not.toBe('BUTTON');
  expect(within(row).queryByRole('button', { name: 'Recording 000' })).not.toBeInTheDocument();
- expect(within(row).getAllByRole('button')).toHaveLength(3);
+ expect(within(row).getAllByRole('button')).toHaveLength(2);
  expect(within(row).getByRole('button', { name: 'openRecord' })).toHaveAttribute('data-home-focus', 'record-G000');
  expect(row.querySelectorAll('details')).toHaveLength(0);
  expect(within(row).getByRole('button', { name: 'rowEvidence.copyTable' })).toBeInTheDocument();
@@ -167,21 +142,8 @@ it('keeps clear and observed controls together without dropping unknown source s
  render(<Host />); const clear = screen.getByRole('button', { name: 'clearFilters' });
  expect(clear.parentElement).toBe(screen.getByLabelText('observedFilter').parentElement?.parentElement);
  const row = within(screen.getByTestId('home-management-table')).getAllByRole('row')[1];
- expect(within(row).getAllByRole('cell')[2]).toHaveTextContent('result.current.unknown');
- expect(within(row).getAllByRole('cell')[1]).not.toHaveTextContent('statusUnknown');
+ expect(within(row).getAllByRole('cell')[1]).toHaveTextContent('result.current.unknown');
+ expect(within(row).getAllByRole('cell')[0]).not.toHaveTextContent('statusUnknown');
 });
 
-describe('Home separates recording and equipment intent', () => {
-  it('keeps a single device management surface with both exact actions beside each device', () => {
-    const openDevice = vi.fn(); render(<Host openDevice={openDevice} />);
-    fireEvent.click(screen.getByRole('button', { name: 'devicesTab' }));
-    expect(screen.queryByTestId('home-device-summary')).not.toBeInTheDocument();
-    expect(screen.getByText('devicesPurpose')).toBeVisible();
-    const row = screen.getByText('Device 0').closest('tr'); if (!row) throw new Error('missing row');
-    fireEvent.click(within(row).getByRole('button', { name: 'deviceConnection' }));
-    fireEvent.click(within(row).getByRole('button', { name: 'devicePoints' }));
-    expect(openDevice.mock.calls).toEqual([['D0', 'connection'], ['D0', 'points']]);
-    fireEvent.click(screen.getByRole('button', { name: 'recordingsTab' }));
-    expect(screen.getByTestId('home-management-table')).toHaveAttribute('data-mode', 'recordings');
-  });
-});
+
