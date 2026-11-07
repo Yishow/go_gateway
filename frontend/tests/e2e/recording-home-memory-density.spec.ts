@@ -10,6 +10,13 @@ for (const light of [true, false]) {
       await page.getByTestId(`home-memory-layout-${layout}`).click();
       const view = page.getByTestId('home-memory-view');
       await view.evaluate(node => { node.scrollTop = 0; });
+      // Density cannot be recovered by hiding the fixture's data-provenance warning.
+      const notice = page.getByTestId('fixture-sample-notice');
+      await expect(notice).toBeVisible();
+      await expect(notice).toHaveText('MOCK SAMPLE readings · not connected to HSL or a device');
+      const noticeBounds = await notice.boundingBox();
+      expect(noticeBounds?.width).toBeGreaterThan(100);
+      expect(noticeBounds?.height).toBeGreaterThan(15);
       await expect.poll(() => view.evaluate(node => {
         const viewport = node.getBoundingClientRect();
         const grid = node.querySelector('.gw-memory-grid')!;

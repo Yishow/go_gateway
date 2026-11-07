@@ -64,6 +64,10 @@ html:not(.dark) .gw-modal .gw-memory-address-map input[type=range]::-webkit-slid
 @media (max-width: 1023px) {
   .gw-memory-workspace[data-layout=detail] { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
 }
+/* Keep two complete tablet address rows below the header without shrinking the saved-range list. */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .gw-memory-workspace[data-layout=chapters] { row-gap: 8px; }
+}
 @media (max-width: 639px) {
   .gw-memory-workspace:is([data-layout=navigator], [data-layout=detail]) { grid-template-columns: minmax(0, 1fr); }
   .gw-memory-range-nav { padding-inline-end: 0; border-inline-end: 0; border-bottom: 1px solid var(--gw-border); }
